@@ -45,7 +45,7 @@
 
 
 
-
+<link rel="dns-prefetch" href="https://myblog-1pdzud272-innerway-xq.vercel.app/">
   <noscript>
     <link rel="stylesheet" href="/css/noscript.css">
   </noscript>
@@ -267,6 +267,20 @@
     </span>
 
   
+  
+  <span class="post-meta-item">
+    
+    <span class="post-meta-item-icon">
+      <i class="far fa-comment"></i>
+    </span>
+    <span class="post-meta-item-text">Waline：</span>
+  
+    <a title="waline" href="/Why-begins/#waline-comments" itemprop="discussionUrl">
+      <span class="post-comments-count waline-comment-count" id="/Why-begins/" data-xid="/Why-begins/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
 </div>
 
           
@@ -307,6 +321,7 @@
 
 
 
+    <div class="comments" id="waline-comments"></div>
 </div>
   </main>
 
@@ -351,7 +366,16 @@
 <script src="/js/third-party/math/mathjax.js"></script>
 
 
-
+<script class="next-config" data-name="waline" type="application/json">{"lang":null,"enable":true,"serverURL":"https://myblog-1pdzud272-innerway-xq.vercel.app/","placeholder":"Just go go","avatar":"mm","meta":["nick","mail","link"],"pageSize":10,"visitor":false,"comment_count":true,"requiredFields":[],"libUrl":"https://cdn.jsdelivr.net/npm/@waline/client/dist/Waline.min.js","el":"#waline-comments","path":"/Why-begins/"}</script>
+<script>
+document.addEventListener('page:loaded', () => {
+  NexT.utils.loadComments(CONFIG.waline.el).then(() => 
+    NexT.utils.getScript(CONFIG.waline.libUrl, { condition: window.Waline })
+  ).then(() => {
+    new Waline(CONFIG.waline);
+  });
+});
+</script>
   
     <script type="text/javascript" src="//cdn.bootcss.com/canvas-nest.js/1.0.0/canvas-nest.min.js"></script>
   
