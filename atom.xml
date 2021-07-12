@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>xq折腾实录</title>
+  <icon>https://innerway-xq.github.io/icon.png</icon>
+  <subtitle>生命在于折腾</subtitle>
+  <link href="https://innerway-xq.github.io/atom.xml" rel="self"/>
+  
+  <link href="https://innerway-xq.github.io/"/>
+  <updated>2021-07-12T11:20:40.733Z</updated>
+  <id>https://innerway-xq.github.io/</id>
+  
+  <author>
+    <name>innerway</name>
+    
+  </author>
+  
+  <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>calc</title>
+    <link href="https://innerway-xq.github.io/archives/5c3132af.html"/>
+    <id>https://innerway-xq.github.io/archives/5c3132af.html</id>
+    <published>2021-07-12T05:18:30.000Z</published>
+    <updated>2021-07-12T11:20:40.733Z</updated>
+    
+    
+    <summary type="html">&lt;h2 id=&quot;pwnable-tw-calc&quot;&gt;&lt;a href=&quot;#pwnable-tw-calc&quot; class=&quot;headerlink&quot; title=&quot;pwnable.tw - calc&quot;&gt;&lt;/a&gt;pwnable.tw - calc&lt;/h2&gt;</summary>
+    
+    
+    
+    <category term="pwnable.tw" scheme="https://innerway-xq.github.io/categories/pwnable-tw/"/>
+    
+    
+    <category term="reverse" scheme="https://innerway-xq.github.io/tags/reverse/"/>
+    
+    <category term="rop" scheme="https://innerway-xq.github.io/tags/rop/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>orw</title>
+    <link href="https://innerway-xq.github.io/archives/6fa2aae4.html"/>
+    <id>https://innerway-xq.github.io/archives/6fa2aae4.html</id>
+    <published>2021-07-10T12:24:28.000Z</published>
+    <updated>2021-07-12T11:20:40.728Z</updated>
+    
+    
+    <summary type="html">&lt;h2 id=&quot;pwnable-tw-orw&quot;&gt;&lt;a href=&quot;#pwnable-tw-orw&quot; class=&quot;headerlink&quot; title=&quot;pwnable.tw - orw&quot;&gt;&lt;/a&gt;pwnable.tw - orw&lt;/h2&gt;</summary>
+    
+    
+    
+    <category term="pwnable.tw" scheme="https://innerway-xq.github.io/categories/pwnable-tw/"/>
+    
+    
+    <category term="shellcode" scheme="https://innerway-xq.github.io/tags/shellcode/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Why begins?</title>
+    <link href="https://innerway-xq.github.io/archives/84551bc4.html"/>
+    <id>https://innerway-xq.github.io/archives/84551bc4.html</id>
+    <published>2021-07-10T06:17:04.000Z</published>
+    <updated>2021-07-12T11:20:40.725Z</updated>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;h2 id=&quot;缘起&quot;&gt;&lt;a href=&quot;#缘起&quot; class=&quot;headerlink&quot;</summary>
+        
+      
+    
+    
+    
+    <category term="杂" scheme="https://innerway-xq.github.io/categories/%E6%9D%82/"/>
+    
+    
+  </entry>
+  
+  <entry>
+    <title>Start</title>
+    <link href="https://innerway-xq.github.io/archives/5eb87a8b.html"/>
+    <id>https://innerway-xq.github.io/archives/5eb87a8b.html</id>
+    <published>2021-07-10T05:25:36.000Z</published>
+    <updated>2021-07-12T11:20:40.730Z</updated>
+    
+    
+    <summary type="html">&lt;h2 id=&quot;pwnable-tw-Start&quot;&gt;&lt;a href=&quot;#pwnable-tw-Start&quot; class=&quot;headerlink&quot; title=&quot;pwnable.tw - Start&quot;&gt;&lt;/a&gt;pwnable.tw - Start&lt;/h2&gt;</summary>
+    
+    
+    
+    <category term="pwnable.tw" scheme="https://innerway-xq.github.io/categories/pwnable-tw/"/>
+    
+    
+    <category term="stackoverflow" scheme="https://innerway-xq.github.io/tags/stackoverflow/"/>
+    
+    <category term="shellcode" scheme="https://innerway-xq.github.io/tags/shellcode/"/>
+    
+  </entry>
+  
+</feed>
