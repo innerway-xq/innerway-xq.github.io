@@ -67,14 +67,14 @@
 
   
   <url>
-    <loc>https://innerway-xq.github.io/tags/shellcode/</loc>
+    <loc>https://innerway-xq.github.io/tags/stackoverflow/</loc>
     <lastmod>2021-07-12</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
   </url>
   
   <url>
-    <loc>https://innerway-xq.github.io/tags/stackoverflow/</loc>
+    <loc>https://innerway-xq.github.io/tags/shellcode/</loc>
     <lastmod>2021-07-12</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
@@ -97,14 +97,14 @@
 
   
   <url>
-    <loc>https://innerway-xq.github.io/categories/%E6%9D%82/</loc>
+    <loc>https://innerway-xq.github.io/categories/pwnable-tw/</loc>
     <lastmod>2021-07-12</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
   </url>
   
   <url>
-    <loc>https://innerway-xq.github.io/categories/pwnable-tw/</loc>
+    <loc>https://innerway-xq.github.io/categories/%E6%9D%82/</loc>
     <lastmod>2021-07-12</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
