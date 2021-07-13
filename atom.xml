@@ -6,7 +6,7 @@
   <link href="https://innerway-xq.github.io/atom.xml" rel="self"/>
   
   <link href="https://innerway-xq.github.io/"/>
-  <updated>2021-07-13T04:08:09.483Z</updated>
+  <updated>2021-07-13T10:25:11.284Z</updated>
   <id>https://innerway-xq.github.io/</id>
   
   <author>
@@ -15,6 +15,27 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>dubblesort</title>
+    <link href="https://innerway-xq.github.io/archives/51d1aace.html"/>
+    <id>https://innerway-xq.github.io/archives/51d1aace.html</id>
+    <published>2021-07-13T07:06:58.000Z</published>
+    <updated>2021-07-13T10:25:11.284Z</updated>
+    
+    
+    <summary type="html">&lt;h2 id=&quot;pwnable-tw-dubblesort&quot;&gt;&lt;a href=&quot;#pwnable-tw-dubblesort&quot; class=&quot;headerlink&quot; title=&quot;pwnable.tw - dubblesort&quot;&gt;&lt;/a&gt;pwnable.tw - dubblesort&lt;/h2&gt;</summary>
+    
+    
+    
+    <category term="pwnable.tw" scheme="https://innerway-xq.github.io/categories/pwnable-tw/"/>
+    
+    
+    <category term="stackoverflow" scheme="https://innerway-xq.github.io/tags/stackoverflow/"/>
+    
+    <category term="ret2libc" scheme="https://innerway-xq.github.io/tags/ret2libc/"/>
+    
+  </entry>
   
   <entry>
     <title>3x17</title>
