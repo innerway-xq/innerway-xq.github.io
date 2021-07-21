@@ -83,6 +83,13 @@
 <p><a href="http://0gur1.cc/2018/03/08/pwnable-tw-hacknote/">http://0gur1.cc/2018/03/08/pwnable-tw-hacknote/</a></p>
 <p><a href="https://medium.com/yuru-sec/pwnable-tw-hacknote-writeup-83129787adbb">https://medium.com/yuru-sec/pwnable-tw-hacknote-writeup-83129787adbb</a></p>
 ]]></content>
+      <categories>
+        <category>pwnable.tw</category>
+      </categories>
+      <tags>
+        <tag>uaf</tag>
+        <tag>堆利用</tag>
+      </tags>
   </entry>
   <entry>
     <title>dubblesort</title>
