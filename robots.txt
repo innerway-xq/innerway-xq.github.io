@@ -1,0 +1,11 @@
+User-agent: * 
+Allow: /
+Allow: /archives/
+Disallow: /categories/
+Disallow: /tags/
+Disallow: /js/
+Disallow: /css/
+Disallow: /images/
+
+Sitemap: https://innerway-xq.github.io/sitemap.xml
+Sitemap: https://innerway-xq.github.io/baidusitemap.xml
