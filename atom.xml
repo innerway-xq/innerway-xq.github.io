@@ -6,7 +6,7 @@
   <link href="https://innerway-xq.github.io/atom.xml" rel="self"/>
   
   <link href="https://innerway-xq.github.io/"/>
-  <updated>2021-07-26T11:36:53.379Z</updated>
+  <updated>2021-08-01T12:50:19.834Z</updated>
   <id>https://innerway-xq.github.io/</id>
   
   <author>
@@ -15,6 +15,25 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>applestore</title>
+    <link href="https://innerway-xq.github.io/archives/ac06426f.html"/>
+    <id>https://innerway-xq.github.io/archives/ac06426f.html</id>
+    <published>2021-08-01T11:17:33.000Z</published>
+    <updated>2021-08-01T12:50:19.834Z</updated>
+    
+    
+    <summary type="html">&lt;h2 id=&quot;pwnable-tw-applestore&quot;&gt;&lt;a href=&quot;#pwnable-tw-applestore&quot; class=&quot;headerlink&quot; title=&quot;pwnable.tw - applestore&quot;&gt;&lt;/a&gt;pwnable.tw - applestore&lt;/h2&gt;</summary>
+    
+    
+    
+    <category term="pwnable.tw" scheme="https://innerway-xq.github.io/categories/pwnable-tw/"/>
+    
+    
+    <category term="ret2libc" scheme="https://innerway-xq.github.io/tags/ret2libc/"/>
+    
+  </entry>
   
   <entry>
     <title>Silver Bullet</title>
