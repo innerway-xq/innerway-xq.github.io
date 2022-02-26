@@ -6,7 +6,7 @@
   <link href="https://innerway-xq.github.io/atom.xml" rel="self"/>
   
   <link href="https://innerway-xq.github.io/"/>
-  <updated>2021-08-01T12:50:19.834Z</updated>
+  <updated>2022-02-26T05:27:34.614Z</updated>
   <id>https://innerway-xq.github.io/</id>
   
   <author>
@@ -15,6 +15,28 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>zctf2016_note2——对ctfwiki上wp的一点想法</title>
+    <link href="https://innerway-xq.github.io/archives/75e0b21a.html"/>
+    <id>https://innerway-xq.github.io/archives/75e0b21a.html</id>
+    <published>2022-02-26T03:15:54.000Z</published>
+    <updated>2022-02-26T05:27:34.614Z</updated>
+    
+    
+    <summary type="html">&lt;h2 id=&quot;learnheap-zctf2016-note2&quot;&gt;&lt;a href=&quot;#learnheap-zctf2016-note2&quot; class=&quot;headerlink&quot; title=&quot;learnheap - zctf2016_note2&quot;&gt;&lt;/a&gt;learnheap - zctf2016_note2&lt;/h2&gt;&lt;p&gt;对于ctfwiki上的wp，我感觉他构造的堆过于复杂了，没有必要，这里写一下我的想法。&lt;/p&gt;
+&lt;p&gt;（如有错误，请指出&lt;/p&gt;</summary>
+    
+    
+    
+    <category term="learnheap" scheme="https://innerway-xq.github.io/categories/learnheap/"/>
+    
+    
+    <category term="unlink" scheme="https://innerway-xq.github.io/tags/unlink/"/>
+    
+    <category term="heap" scheme="https://innerway-xq.github.io/tags/heap/"/>
+    
+  </entry>
   
   <entry>
     <title>applestore</title>
@@ -61,7 +83,7 @@
     <link href="https://innerway-xq.github.io/archives/c5963d96.html"/>
     <id>https://innerway-xq.github.io/archives/c5963d96.html</id>
     <published>2021-07-21T07:35:51.000Z</published>
-    <updated>2021-07-21T09:27:39.595Z</updated>
+    <updated>2022-02-26T03:18:17.820Z</updated>
     
     
     <summary type="html">&lt;h2 id=&quot;pwnable-tw-hacknote&quot;&gt;&lt;a href=&quot;#pwnable-tw-hacknote&quot; class=&quot;headerlink&quot; title=&quot;pwnable.tw - hacknote&quot;&gt;&lt;/a&gt;pwnable.tw - hacknote&lt;/h2&gt;</summary>
@@ -73,7 +95,7 @@
     
     <category term="uaf" scheme="https://innerway-xq.github.io/tags/uaf/"/>
     
-    <category term="堆利用" scheme="https://innerway-xq.github.io/tags/%E5%A0%86%E5%88%A9%E7%94%A8/"/>
+    <category term="heap" scheme="https://innerway-xq.github.io/tags/heap/"/>
     
   </entry>
   
@@ -166,7 +188,7 @@
     <link href="https://innerway-xq.github.io/archives/84551bc4.html"/>
     <id>https://innerway-xq.github.io/archives/84551bc4.html</id>
     <published>2021-07-10T06:17:04.000Z</published>
-    <updated>2021-07-13T11:28:45.252Z</updated>
+    <updated>2022-02-26T05:28:48.784Z</updated>
     
     
       
